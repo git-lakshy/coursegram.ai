@@ -1,10 +1,12 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { Route } from "lucide-react"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { ErrorState } from "@/components/common/ErrorState"
 import { RoadmapStage } from "@/components/roadmap/RoadmapStage"
 import { Accordion } from "@/components/ui/accordion"
+import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
@@ -16,13 +18,31 @@ export function Roadmap() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
   const { profile } = useAuth()
   const slugsQuery = useRoadmapSlugs()
-  const slug = selectedSlug ?? profile?.target_role_slug ?? slugsQuery.data?.slugs[0]
+  const slug = selectedSlug ?? profile?.target_role_slug ?? undefined
 
   const roadmapQuery = useRoadmap(slug)
   const { completedTopics, toggleTopic } = useLocalProgress(slug)
 
   const topics = roadmapQuery.data?.topics ?? []
   const stages = groupTopicsIntoStages(slug ?? "roadmap", topics)
+
+  if (slug === undefined || slug === null || slug === "") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-5">
+        <h1 className="mb-4 text-lg font-semibold text-ink-primary">My roadmap</h1>
+        <EmptyState
+          icon={Route}
+          title="No roadmap yet"
+          description="Pick a target role and we will build your learning path."
+        />
+        <div className="flex justify-center">
+          <Link to="/onboarding">
+            <Button variant="accent">Create my roadmap</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-5">

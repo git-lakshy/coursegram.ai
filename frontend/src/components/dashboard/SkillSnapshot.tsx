@@ -1,3 +1,5 @@
+import { ArrowRight } from "lucide-react"
+import { Link } from "react-router-dom"
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts"
 
 import { EmptyState } from "@/components/common/EmptyState"
@@ -17,7 +19,7 @@ export function SkillSnapshot({ allTopics, completedTopics, isLoading }: SkillSn
   const chartData = categories.map((category) => {
     const completedCount = category.topics.filter((topic) => completedTopics.includes(topic)).length
     const percent = category.topics.length > 0 ? Math.round((completedCount / category.topics.length) * 100) : 0
-    return { skill: category.label, value: percent }
+    return { skill: category.label, value: percent, required: 100 }
   })
 
   return (
@@ -37,11 +39,30 @@ export function SkillSnapshot({ allTopics, completedTopics, isLoading }: SkillSn
             <RadarChart data={chartData}>
               <PolarGrid stroke="#E5E7EB" />
               <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: "#6B7280" }} />
-              <Radar dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.25} />
+              <Radar name="Required" dataKey="required" stroke="#9CA3AF" fill="#9CA3AF" fillOpacity={0.08} />
+              <Radar name="Your level" dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.25} />
             </RadarChart>
           </ResponsiveContainer>
         </div>
       )}
+      {chartData.length > 0 ? (
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-xs text-ink-muted">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-accent-600" />
+              Your level
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-ink-muted" />
+              Required
+            </span>
+          </div>
+          <Link to="/skill-graph" className="flex items-center gap-1 text-xs font-medium text-accent-700 hover:underline">
+            View skill graph
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      ) : null}
     </div>
   )
 }
