@@ -21,3 +21,11 @@ class LearnerProfile(BaseModel):
         default=None,
         description="Slug of the roadmap track the learner is aiming for",
     )
+    known_topics: list[str] = Field(
+        default_factory=list,
+        description="Topics the learner already knows, from onboarding",
+    )
+    onboarding_complete: bool = Field(
+        default=False,
+        description="Whether the first time onboarding flow has been finished",
+    )

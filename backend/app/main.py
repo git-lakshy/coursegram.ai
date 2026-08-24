@@ -1,15 +1,18 @@
 """FastAPI application exposing course listings and roadmap topic references."""
 
+import app.config  # loads backend/.env before anything reads the environment
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
 from app.auth_security import issue_token, verify_password
 from app.coursera_client import UpstreamError, fetch_courses
 from app.models import LearnerProfile
+from app.onboarding import GradeRequest, GradeResponse, QuizRequest, QuizResponse, generate_quiz, grade_quiz
 from app.profile_store import load_profile, save_profile
 from app.roadmap_store import (
     RoadmapNotFound,
@@ -157,3 +160,27 @@ def login(payload: LoginRequest) -> TokenResponse:
 def me(email: str = Depends(get_current_user_email)) -> dict:
     """Return the authenticated identity for the presented bearer token."""
     return {"email": email}
+
+@app.post("/onboarding/quiz")
+def onboarding_quiz(
+    payload: QuizRequest, email: str = Depends(get_current_user_email)
+) -> QuizResponse:
+    """Generate a placement quiz for the chosen track via the LLM."""
+    return generate_quiz(payload)
+
+
+@app.post("/onboarding/grade")
+def onboarding_grade(
+    payload: GradeRequest, email: str = Depends(get_current_user_email)
+) -> GradeResponse:
+    """Grade a placement quiz locally and recommend a skill level."""
+    return grade_quiz(payload)
+
+
+@app.post("/assistant/chat")
+def assistant_chat(
+    payload: ChatRequest, email: str = Depends(get_current_user_email)
+) -> ChatResponse:
+    """Reply to a learner question with profile and track context."""
+    profile = load_profile(email)
+    return chat(email, profile, payload)
