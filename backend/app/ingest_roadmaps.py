@@ -62,14 +62,34 @@ def clean_label(text: str) -> str:
 
 
 SKIP_LABELS = {"", "horizontal node", "vertical node"}
+LABEL_MAX_LENGTH = 60
+JUNK_PATTERNS = (
+    "roadmap.sh",
+    "http",
+    "related roadmap",
+    "detailed version",
+    "click here",
+    "community",
+    "youtube",
+    "twitter",
+    "discord",
+)
+
+
+def is_junk_label(label: str) -> bool:
+    lowered = label.lower()
+    if len(label) > LABEL_MAX_LENGTH:
+        return True
+    return any(pattern in lowered for pattern in JUNK_PATTERNS)
 
 
 def collect_topics(nodes: list, out: list[str], seen: set[str]) -> None:
     """Walk roadmap nodes and collect topic labels in visual order.
 
     Roadmap content nodes carry their label in data.label. Nodes without a
-    meaningful label are connectors or containers and are skipped. Nodes
-    are ordered top to bottom, left to right by canvas position.
+    meaningful label are connectors or containers and are skipped. Labels
+    that are navigation boilerplate rather than skills are filtered out.
+    Nodes are ordered top to bottom, left to right by canvas position.
     """
     labeled = []
     for node in nodes:
@@ -77,7 +97,7 @@ def collect_topics(nodes: list, out: list[str], seen: set[str]) -> None:
             continue
         data = node.get("data") or {}
         label = clean_label(data.get("label", ""))
-        if label in SKIP_LABELS:
+        if label in SKIP_LABELS or is_junk_label(label):
             continue
         position = node.get("position") or {}
         labeled.append((position.get("y", 0), position.get("x", 0), label))
@@ -85,6 +105,10 @@ def collect_topics(nodes: list, out: list[str], seen: set[str]) -> None:
         if label.lower() not in seen:
             seen.add(label.lower())
             out.append(label)
+
+
+def topic_to_id(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 def ingest() -> None:
@@ -115,6 +139,19 @@ def ingest() -> None:
         out_path = DATA_DIR / f"{slug}.json"
         with out_path.open("w", encoding="utf-8") as file:
             json.dump(record, file, ensure_ascii=False, indent=2)
+
+        graph = {
+            "slug": slug,
+            "source": record["source"],
+            "nodes": [
+                {"id": topic_to_id(topic), "name": topic, "prerequisites": []}
+                for topic in topics
+            ],
+        }
+        graph_path = DATA_DIR / f"{slug}.graph.json"
+        with graph_path.open("w", encoding="utf-8") as file:
+            json.dump(graph, file, ensure_ascii=False, indent=2)
+
         saved += 1
         print(f"saved {slug}: {len(topics)} topics")
 

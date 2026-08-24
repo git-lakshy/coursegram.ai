@@ -36,11 +36,17 @@ def list_roadmap_slugs() -> list[str]:
     return sorted(curated | ingested)
 
 
-def _read_topics(path: Path) -> list[str] | None:
+def _read_json(path: Path) -> dict | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as file:
-        payload = json.load(file)
+        return json.load(file)
+
+
+def _read_topics(path: Path) -> list[str] | None:
+    payload = _read_json(path)
+    if payload is None:
+        return None
     return payload.get("topics", [])
 
 
@@ -63,10 +69,14 @@ def load_roadmap_topics(slug: str) -> list[str]:
 def load_roadmap_graph(slug: str) -> dict:
     """Load the structured skill graph for a roadmap slug.
 
-    Raises RoadmapNotFound when no graph seed file exists for the given slug.
+    Curated seeds take priority, then ingested roadmap.sh data.
+    Raises RoadmapNotFound when no graph data exists for the given slug.
     """
     path = _validated_path(slug, ".graph.json")
-    if not path.exists():
+    graph = _read_json(path)
+    if graph is not None:
+        return graph
+    graph = _read_json(INGESTED_DIR / f"{slug}.graph.json")
+    if graph is None:
         raise RoadmapNotFound(slug)
-    with path.open("r", encoding="utf-8") as file:
-        return json.load(file)
+    return graph
