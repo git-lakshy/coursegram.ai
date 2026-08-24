@@ -1,0 +1,1 @@
+"""Coursegram backend application package."""
