@@ -1,11 +1,43 @@
 """FastAPI application exposing course listings and roadmap topic references."""
 
-from fastapi import FastAPI, Query
+import httpx
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
-from app.coursera_client import fetch_courses
-from app.roadmap_store import list_roadmap_slugs, load_roadmap_topics
+from app.auth import get_current_user_email
+from app.auth_security import issue_token, verify_password
+from app.coursera_client import UpstreamError, fetch_courses
+from app.models import LearnerProfile
+from app.profile_store import load_profile, save_profile
+from app.roadmap_store import (
+    RoadmapNotFound,
+    list_roadmap_slugs,
+    load_roadmap_graph,
+    load_roadmap_topics,
+)
+from app.user_store import UserNotFound, UserAlreadyExists, create_user, get_user_record
 
-app = FastAPI(title="Coursegram API", version="0.1.0")
+app = FastAPI(title="Coursegram API", version="0.3.1")
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+
+@app.exception_handler(UpstreamError)
+def upstream_error_handler(request, exc: UpstreamError):
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
 @app.get("/health")
@@ -33,5 +65,95 @@ def get_roadmap_slugs() -> dict:
 @app.get("/roadmaps/{slug}")
 def get_roadmap(slug: str) -> dict:
     """Return the ordered topic list for a given roadmap slug."""
-    topics = load_roadmap_topics(slug)
+    try:
+        topics = load_roadmap_topics(slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
     return {"slug": slug, "topic_count": len(topics), "topics": topics}
+
+
+@app.get("/roadmaps/{slug}/graph")
+def get_roadmap_graph(slug: str) -> dict:
+    """Return the structured skill graph for a slug, with prerequisites."""
+    try:
+        graph = load_roadmap_graph(slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    return {
+        "slug": graph["slug"],
+        "node_count": len(graph["nodes"]),
+        "nodes": graph["nodes"],
+    }
+
+
+@app.get("/profile")
+def get_profile(user_email: str = Depends(get_current_user_email)) -> LearnerProfile:
+    """Return the authenticated learner's profile, defaults when none exists."""
+    return load_profile(user_email)
+
+
+@app.put("/profile")
+def update_profile(
+    profile: LearnerProfile, user_email: str = Depends(get_current_user_email)
+) -> LearnerProfile:
+    """Persist the authenticated learner's profile after validating the target role."""
+    if (
+        profile.target_role_slug is not None
+        and profile.target_role_slug not in list_roadmap_slugs()
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Unknown target role slug. Pick one from GET /roadmaps.",
+        )
+    return save_profile(user_email, profile)
+
+
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320, description="Learner email address")
+    password: str = Field(min_length=8, max_length=128)
+    display_name: str = Field(default="", max_length=120)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    email: str
+
+
+@app.post("/auth/register", status_code=201)
+def register(payload: RegisterRequest) -> TokenResponse:
+    """Create a local dev user and return a signed access token."""
+    try:
+        record = create_user(payload.email, payload.password, payload.display_name)
+    except UserAlreadyExists:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    return TokenResponse(
+        access_token=issue_token(record["email"]), email=record["email"]
+    )
+
+
+@app.post("/auth/login")
+def login(payload: LoginRequest) -> TokenResponse:
+    """Verify credentials and return a signed access token."""
+    try:
+        record = get_user_record(payload.email)
+    except UserNotFound:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not verify_password(
+        payload.password, record["password_salt"], record["password_hash"]
+    ):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return TokenResponse(
+        access_token=issue_token(record["email"]), email=record["email"]
+    )
+
+
+@app.get("/auth/me")
+def me(email: str = Depends(get_current_user_email)) -> dict:
+    """Return the authenticated identity for the presented bearer token."""
+    return {"email": email}
