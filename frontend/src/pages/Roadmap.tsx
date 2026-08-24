@@ -8,13 +8,15 @@ import { Accordion } from "@/components/ui/accordion"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
+import { useAuth } from "@/hooks/useAuth"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
 
 export function Roadmap() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
+  const { profile } = useAuth()
   const slugsQuery = useRoadmapSlugs()
-  const slug = selectedSlug ?? slugsQuery.data?.slugs[0]
+  const slug = selectedSlug ?? profile?.target_role_slug ?? slugsQuery.data?.slugs[0]
 
   const roadmapQuery = useRoadmap(slug)
   const { completedTopics, toggleTopic } = useLocalProgress(slug)

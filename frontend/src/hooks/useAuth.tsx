@@ -30,6 +30,8 @@ const DEFAULT_PROFILE: LearnerProfile = {
   background: "",
   skill_level: "beginner",
   target_role_slug: null,
+  known_topics: [],
+  onboarding_complete: false,
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -1,10 +1,16 @@
 import { API_BASE_URL } from "@/lib/config"
 import type {
   AuthResponse,
+  ChatMessage,
+  ChatResponse,
   CoursesResponse,
+  GradeResponse,
   HealthResponse,
   LearnerProfile,
   MeResponse,
+  QuizQuestion,
+  QuizResponse,
+  RoadmapGraphResponse,
   RoadmapResponse,
   RoadmapSlugsResponse,
 } from "@/types"
@@ -72,6 +78,10 @@ export function getRoadmap(slug: string): Promise<RoadmapResponse> {
   return request<RoadmapResponse>(`/roadmaps/${slug}`)
 }
 
+export function getRoadmapGraph(slug: string): Promise<RoadmapGraphResponse> {
+  return request<RoadmapGraphResponse>(`/roadmaps/${slug}/graph`)
+}
+
 export function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
   return request<AuthResponse>("/auth/register", {
     method: "POST",
@@ -96,6 +106,43 @@ export function getProfile(token: string): Promise<LearnerProfile> {
 
 export function updateProfile(token: string, profile: LearnerProfile): Promise<LearnerProfile> {
   return request<LearnerProfile>("/profile", { method: "PUT", body: profile, token })
+}
+
+export function generateQuiz(
+  token: string,
+  slug: string,
+  knownTopics: string[],
+  skillLevel: string,
+): Promise<QuizResponse> {
+  return request<QuizResponse>("/onboarding/quiz", {
+    method: "POST",
+    body: { slug, known_topics: knownTopics, skill_level: skillLevel },
+    token,
+  })
+}
+
+export function gradeQuiz(
+  token: string,
+  questions: QuizQuestion[],
+  answers: number[],
+): Promise<GradeResponse> {
+  return request<GradeResponse>("/onboarding/grade", {
+    method: "POST",
+    body: { questions, answers },
+    token,
+  })
+}
+
+export function sendAssistantMessage(
+  token: string,
+  message: string,
+  history: ChatMessage[],
+): Promise<ChatResponse> {
+  return request<ChatResponse>("/assistant/chat", {
+    method: "POST",
+    body: { message, history },
+    token,
+  })
 }
 
 export { ApiError }

@@ -1,14 +1,14 @@
 import {
   Bookmark,
   BookOpen,
+  Bot,
   ClipboardCheck,
   FolderKanban,
   LayoutDashboard,
-  Network,
   Route,
   Settings2,
-  Sparkles,
   UserRound,
+  Waypoints,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -37,8 +37,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Learning",
     items: [
-      { label: "Skill Graph", to: "/skill-graph", icon: Network },
-      { label: "AI Assistant", to: "/assistant", icon: Sparkles },
+      { label: "Skill Graph", to: "/skill-graph", icon: Waypoints },
+      { label: "AI Assistant", to: "/assistant", icon: Bot },
       { label: "Bookmarks", to: "/bookmarks", icon: Bookmark },
     ],
   },

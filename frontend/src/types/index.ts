@@ -39,6 +39,23 @@ export type SkillCategory = {
   topics: string[]
 }
 
+export type GraphPrerequisite = {
+  id: string
+  name: string
+}
+
+export type GraphNode = {
+  id: string
+  name: string
+  prerequisites: GraphPrerequisite[]
+}
+
+export type RoadmapGraphResponse = {
+  slug: string
+  node_count: number
+  nodes: GraphNode[]
+}
+
 export type SkillLevel = "beginner" | "intermediate" | "advanced"
 
 export type LearnerProfile = {
@@ -46,6 +63,8 @@ export type LearnerProfile = {
   background: string
   skill_level: SkillLevel
   target_role_slug: string | null
+  known_topics: string[]
+  onboarding_complete: boolean
 }
 
 export type AuthResponse = {
@@ -56,4 +75,33 @@ export type AuthResponse = {
 
 export type MeResponse = {
   email: string
+}
+
+export type QuizQuestion = {
+  id: string
+  question: string
+  options: string[]
+  answer_index: number
+  topic: string
+}
+
+export type QuizResponse = {
+  slug: string
+  questions: QuizQuestion[]
+}
+
+export type GradeResponse = {
+  score: number
+  total: number
+  recommended_level: SkillLevel
+  summary: string
+}
+
+export type ChatMessage = {
+  role: "user" | "assistant"
+  content: string
+}
+
+export type ChatResponse = {
+  reply: string
 }

@@ -8,6 +8,7 @@ import { RoadmapProgress } from "@/components/dashboard/RoadmapProgress"
 import { SkillSnapshot } from "@/components/dashboard/SkillSnapshot"
 import { UpcomingItems } from "@/components/dashboard/UpcomingItems"
 import { Select } from "@/components/ui/select"
+import { useAuth } from "@/hooks/useAuth"
 import { useCourses } from "@/hooks/useCourses"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
@@ -15,8 +16,9 @@ import { groupTopicsIntoStages } from "@/lib/roadmapStages"
 
 export function Dashboard() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
+  const { profile } = useAuth()
   const { data: slugsData } = useRoadmapSlugs()
-  const slug = selectedSlug ?? slugsData?.slugs[0]
+  const slug = selectedSlug ?? profile?.target_role_slug ?? slugsData?.slugs[0]
 
   const roadmapQuery = useRoadmap(slug)
   const { completedTopics } = useLocalProgress(slug)

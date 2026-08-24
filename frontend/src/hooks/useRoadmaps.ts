@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { getRoadmap, getRoadmapSlugs } from "@/lib/api"
+import { getRoadmap, getRoadmapGraph, getRoadmapSlugs } from "@/lib/api"
 
 export function useRoadmapSlugs() {
   return useQuery({
@@ -13,6 +13,14 @@ export function useRoadmap(slug: string | undefined) {
   return useQuery({
     queryKey: ["roadmap", slug],
     queryFn: () => getRoadmap(slug as string),
+    enabled: Boolean(slug),
+  })
+}
+
+export function useRoadmapGraph(slug: string | undefined) {
+  return useQuery({
+    queryKey: ["roadmap-graph", slug],
+    queryFn: () => getRoadmapGraph(slug as string),
     enabled: Boolean(slug),
   })
 }
