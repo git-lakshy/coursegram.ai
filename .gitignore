@@ -6,3 +6,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 temp/
+start.bat
+backend/app/data/users.json
+backend/app/data/profiles.json
+backend/app/data/dev_secret.key
