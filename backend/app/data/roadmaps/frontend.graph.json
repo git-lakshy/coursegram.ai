@@ -1,0 +1,508 @@
+{
+  "slug": "frontend",
+  "source": "https://roadmap.sh/frontend",
+  "nodes": [
+    {
+      "id": "how-the-internet-works",
+      "name": "How the internet works",
+      "prerequisites": []
+    },
+    {
+      "id": "what-is-http",
+      "name": "What is HTTP",
+      "prerequisites": []
+    },
+    {
+      "id": "what-is-a-domain-name",
+      "name": "What is a domain name",
+      "prerequisites": []
+    },
+    {
+      "id": "what-is-hosting",
+      "name": "What is hosting",
+      "prerequisites": []
+    },
+    {
+      "id": "dns-and-how-it-works",
+      "name": "DNS and how it works",
+      "prerequisites": []
+    },
+    {
+      "id": "browsers-and-how-they-work",
+      "name": "Browsers and how they work",
+      "prerequisites": []
+    },
+    {
+      "id": "html",
+      "name": "HTML",
+      "prerequisites": [
+        {
+          "id": "how-the-internet-works",
+          "name": "How the internet works"
+        }
+      ]
+    },
+    {
+      "id": "css",
+      "name": "CSS",
+      "prerequisites": [
+        {
+          "id": "html",
+          "name": "HTML"
+        }
+      ]
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript",
+      "prerequisites": [
+        {
+          "id": "html",
+          "name": "HTML"
+        },
+        {
+          "id": "css",
+          "name": "CSS"
+        }
+      ]
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "prerequisites": [
+        {
+          "id": "how-the-internet-works",
+          "name": "How the internet works"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "prerequisites": [
+        {
+          "id": "git",
+          "name": "Git"
+        }
+      ]
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "prerequisites": [
+        {
+          "id": "git",
+          "name": "Git"
+        }
+      ]
+    },
+    {
+      "id": "npm",
+      "name": "npm",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "yarn",
+      "name": "yarn",
+      "prerequisites": [
+        {
+          "id": "npm",
+          "name": "npm"
+        }
+      ]
+    },
+    {
+      "id": "pnpm",
+      "name": "pnpm",
+      "prerequisites": [
+        {
+          "id": "npm",
+          "name": "npm"
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "vuejs",
+      "name": "Vue.js",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "angular",
+      "name": "Angular",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "svelte",
+      "name": "Svelte",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "solid-js",
+      "name": "Solid JS",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "tailwind",
+      "name": "Tailwind",
+      "prerequisites": [
+        {
+          "id": "css",
+          "name": "CSS"
+        }
+      ]
+    },
+    {
+      "id": "vite",
+      "name": "Vite",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        },
+        {
+          "id": "npm",
+          "name": "npm"
+        }
+      ]
+    },
+    {
+      "id": "parcel",
+      "name": "Parcel",
+      "prerequisites": []
+    },
+    {
+      "id": "rollup",
+      "name": "Rollup",
+      "prerequisites": []
+    },
+    {
+      "id": "esbuild",
+      "name": "esbuild",
+      "prerequisites": []
+    },
+    {
+      "id": "prettier",
+      "name": "Prettier",
+      "prerequisites": []
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "prerequisites": []
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "prerequisites": []
+    },
+    {
+      "id": "jest",
+      "name": "Jest",
+      "prerequisites": []
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "prerequisites": []
+    },
+    {
+      "id": "cypress",
+      "name": "Cypress",
+      "prerequisites": []
+    },
+    {
+      "id": "cors",
+      "name": "CORS",
+      "prerequisites": []
+    },
+    {
+      "id": "https",
+      "name": "HTTPS",
+      "prerequisites": []
+    },
+    {
+      "id": "csp",
+      "name": "CSP",
+      "prerequisites": []
+    },
+    {
+      "id": "owasp-risks",
+      "name": "OWASP Risks",
+      "prerequisites": []
+    },
+    {
+      "id": "custom-elements",
+      "name": "Custom Elements",
+      "prerequisites": []
+    },
+    {
+      "id": "html-templates",
+      "name": "HTML Templates",
+      "prerequisites": []
+    },
+    {
+      "id": "shadow-dom",
+      "name": "Shadow DOM",
+      "prerequisites": []
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "server-side-rendering",
+      "name": "Server Side Rendering",
+      "prerequisites": []
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "prerequisites": [
+        {
+          "id": "react",
+          "name": "React"
+        }
+      ]
+    },
+    {
+      "id": "nuxtjs",
+      "name": "Nuxt.js",
+      "prerequisites": [
+        {
+          "id": "vuejs",
+          "name": "Vue.js"
+        }
+      ]
+    },
+    {
+      "id": "sveltekit",
+      "name": "SvelteKit",
+      "prerequisites": [
+        {
+          "id": "svelte",
+          "name": "Svelte"
+        }
+      ]
+    },
+    {
+      "id": "graphql",
+      "name": "GraphQL",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo",
+      "prerequisites": [
+        {
+          "id": "graphql",
+          "name": "GraphQL"
+        }
+      ]
+    },
+    {
+      "id": "relay-modern",
+      "name": "Relay Modern",
+      "prerequisites": [
+        {
+          "id": "graphql",
+          "name": "GraphQL"
+        }
+      ]
+    },
+    {
+      "id": "static-site-generation",
+      "name": "Static Site Generation",
+      "prerequisites": []
+    },
+    {
+      "id": "astro",
+      "name": "Astro",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "eleventy",
+      "name": "Eleventy",
+      "prerequisites": []
+    },
+    {
+      "id": "vuepress",
+      "name": "Vuepress",
+      "prerequisites": []
+    },
+    {
+      "id": "react-native",
+      "name": "React Native",
+      "prerequisites": [
+        {
+          "id": "react",
+          "name": "React"
+        }
+      ]
+    },
+    {
+      "id": "flutter",
+      "name": "Flutter",
+      "prerequisites": []
+    },
+    {
+      "id": "ionic",
+      "name": "Ionic",
+      "prerequisites": []
+    },
+    {
+      "id": "electron",
+      "name": "Electron",
+      "prerequisites": [
+        {
+          "id": "nodejs",
+          "name": "Node.js"
+        }
+      ]
+    },
+    {
+      "id": "tauri",
+      "name": "Tauri",
+      "prerequisites": []
+    },
+    {
+      "id": "nodejs",
+      "name": "Node.js",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "lighthouse",
+      "name": "Lighthouse",
+      "prerequisites": []
+    },
+    {
+      "id": "devtools-usage",
+      "name": "DevTools Usage",
+      "prerequisites": []
+    },
+    {
+      "id": "service-workers",
+      "name": "Service Workers",
+      "prerequisites": [
+        {
+          "id": "javascript",
+          "name": "JavaScript"
+        }
+      ]
+    },
+    {
+      "id": "streamed-responses",
+      "name": "Streamed Responses",
+      "prerequisites": []
+    },
+    {
+      "id": "design-systems",
+      "name": "Design Systems",
+      "prerequisites": []
+    },
+    {
+      "id": "web-apis",
+      "name": "Web APIs",
+      "prerequisites": []
+    },
+    {
+      "id": "accessibility",
+      "name": "Accessibility",
+      "prerequisites": [
+        {
+          "id": "html",
+          "name": "HTML"
+        },
+        {
+          "id": "css",
+          "name": "CSS"
+        }
+      ]
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel",
+      "prerequisites": []
+    },
+    {
+      "id": "netlify",
+      "name": "Netlify",
+      "prerequisites": []
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "prerequisites": []
+    },
+    {
+      "id": "github-pages",
+      "name": "GitHub Pages",
+      "prerequisites": []
+    },
+    {
+      "id": "railway",
+      "name": "Railway",
+      "prerequisites": []
+    },
+    {
+      "id": "render",
+      "name": "Render",
+      "prerequisites": []
+    }
+  ]
+}

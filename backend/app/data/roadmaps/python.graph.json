@@ -1,0 +1,533 @@
+{
+  "slug": "python",
+  "source": "https://roadmap.sh/python",
+  "nodes": [
+    {
+      "id": "basic-syntax",
+      "name": "Basic Syntax",
+      "prerequisites": []
+    },
+    {
+      "id": "variables-and-data-types",
+      "name": "Variables and Data Types",
+      "prerequisites": [
+        {
+          "id": "basic-syntax",
+          "name": "Basic Syntax"
+        }
+      ]
+    },
+    {
+      "id": "conditionals",
+      "name": "Conditionals",
+      "prerequisites": [
+        {
+          "id": "variables-and-data-types",
+          "name": "Variables and Data Types"
+        }
+      ]
+    },
+    {
+      "id": "type-casting",
+      "name": "Type Casting",
+      "prerequisites": []
+    },
+    {
+      "id": "exceptions",
+      "name": "Exceptions",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "functions",
+      "name": "Functions",
+      "prerequisites": [
+        {
+          "id": "loops",
+          "name": "Loops"
+        }
+      ]
+    },
+    {
+      "id": "builtin-functions",
+      "name": "Builtin Functions",
+      "prerequisites": []
+    },
+    {
+      "id": "lists",
+      "name": "Lists",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "tuples",
+      "name": "Tuples",
+      "prerequisites": [
+        {
+          "id": "lists",
+          "name": "Lists"
+        }
+      ]
+    },
+    {
+      "id": "sets",
+      "name": "Sets",
+      "prerequisites": [
+        {
+          "id": "lists",
+          "name": "Lists"
+        }
+      ]
+    },
+    {
+      "id": "dictionaries",
+      "name": "Dictionaries",
+      "prerequisites": [
+        {
+          "id": "lists",
+          "name": "Lists"
+        }
+      ]
+    },
+    {
+      "id": "loops",
+      "name": "Loops",
+      "prerequisites": [
+        {
+          "id": "conditionals",
+          "name": "Conditionals"
+        }
+      ]
+    },
+    {
+      "id": "arrays-and-linked-lists",
+      "name": "Arrays and Linked Lists",
+      "prerequisites": []
+    },
+    {
+      "id": "heaps,-stacks-and-queues",
+      "name": "Heaps, Stacks and Queues",
+      "prerequisites": []
+    },
+    {
+      "id": "hashmaps",
+      "name": "HashMaps",
+      "prerequisites": []
+    },
+    {
+      "id": "binary-search-tree",
+      "name": "Binary Search Tree",
+      "prerequisites": []
+    },
+    {
+      "id": "recursion",
+      "name": "Recursion",
+      "prerequisites": []
+    },
+    {
+      "id": "sorting-algorithms",
+      "name": "Sorting Algorithms",
+      "prerequisites": []
+    },
+    {
+      "id": "modules",
+      "name": "Modules",
+      "prerequisites": []
+    },
+    {
+      "id": "data-structures-and-algorithms",
+      "name": "Data Structures and Algorithms",
+      "prerequisites": []
+    },
+    {
+      "id": "lambdas",
+      "name": "Lambdas",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "decorators",
+      "name": "Decorators",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "iterators",
+      "name": "Iterators",
+      "prerequisites": []
+    },
+    {
+      "id": "regular-expressions",
+      "name": "Regular Expressions",
+      "prerequisites": []
+    },
+    {
+      "id": "object-oriented-programming",
+      "name": "Object Oriented Programming",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "classes",
+      "name": "Classes",
+      "prerequisites": [
+        {
+          "id": "object-oriented-programming",
+          "name": "Object Oriented Programming"
+        }
+      ]
+    },
+    {
+      "id": "inheritance",
+      "name": "Inheritance",
+      "prerequisites": [
+        {
+          "id": "classes",
+          "name": "Classes"
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "name": "Methods",
+      "prerequisites": [
+        {
+          "id": "classes",
+          "name": "Classes"
+        }
+      ]
+    },
+    {
+      "id": "encapsulation",
+      "name": "Encapsulation",
+      "prerequisites": [
+        {
+          "id": "classes",
+          "name": "Classes"
+        }
+      ]
+    },
+    {
+      "id": "package-managers",
+      "name": "Package Managers",
+      "prerequisites": []
+    },
+    {
+      "id": "pypi",
+      "name": "PyPI",
+      "prerequisites": []
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "prerequisites": []
+    },
+    {
+      "id": "conda",
+      "name": "Conda",
+      "prerequisites": []
+    },
+    {
+      "id": "poetry",
+      "name": "Poetry",
+      "prerequisites": []
+    },
+    {
+      "id": "pdm",
+      "name": "pdm",
+      "prerequisites": []
+    },
+    {
+      "id": "uv",
+      "name": "uv",
+      "prerequisites": []
+    },
+    {
+      "id": "list-comprehensions",
+      "name": "List Comprehensions",
+      "prerequisites": [
+        {
+          "id": "lists",
+          "name": "Lists"
+        },
+        {
+          "id": "loops",
+          "name": "Loops"
+        }
+      ]
+    },
+    {
+      "id": "generator-expressions",
+      "name": "Generator Expressions",
+      "prerequisites": [
+        {
+          "id": "lambdas",
+          "name": "Lambdas"
+        },
+        {
+          "id": "loops",
+          "name": "Loops"
+        }
+      ]
+    },
+    {
+      "id": "context-manager",
+      "name": "Context Manager",
+      "prerequisites": []
+    },
+    {
+      "id": "working-with-strings",
+      "name": "Working with Strings",
+      "prerequisites": []
+    },
+    {
+      "id": "file-handling",
+      "name": "File Handling",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "variable-scope",
+      "name": "Variable Scope",
+      "prerequisites": []
+    },
+    {
+      "id": "glob",
+      "name": "glob",
+      "prerequisites": []
+    },
+    {
+      "id": "operators",
+      "name": "Operators",
+      "prerequisites": []
+    },
+    {
+      "id": "comments",
+      "name": "Comments",
+      "prerequisites": []
+    },
+    {
+      "id": "type-annotations",
+      "name": "Type Annotations",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "flask",
+      "name": "Flask",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "django",
+      "name": "Django",
+      "prerequisites": [
+        {
+          "id": "object-oriented-programming",
+          "name": "Object Oriented Programming"
+        }
+      ]
+    },
+    {
+      "id": "fastapi",
+      "name": "FastAPI",
+      "prerequisites": [
+        {
+          "id": "type-annotations",
+          "name": "Type Annotations"
+        },
+        {
+          "id": "pydantic",
+          "name": "Pydantic"
+        }
+      ]
+    },
+    {
+      "id": "pyramid",
+      "name": "Pyramid",
+      "prerequisites": []
+    },
+    {
+      "id": "plotly-dash",
+      "name": "Plotly Dash",
+      "prerequisites": []
+    },
+    {
+      "id": "aiohttp",
+      "name": "aiohttp",
+      "prerequisites": []
+    },
+    {
+      "id": "tornado",
+      "name": "Tornado",
+      "prerequisites": []
+    },
+    {
+      "id": "sanic",
+      "name": "Sanic",
+      "prerequisites": []
+    },
+    {
+      "id": "gevent",
+      "name": "gevent",
+      "prerequisites": []
+    },
+    {
+      "id": "gil",
+      "name": "GIL",
+      "prerequisites": []
+    },
+    {
+      "id": "threading",
+      "name": "Threading",
+      "prerequisites": [
+        {
+          "id": "gil",
+          "name": "GIL"
+        }
+      ]
+    },
+    {
+      "id": "multiprocessing",
+      "name": "Multiprocessing",
+      "prerequisites": [
+        {
+          "id": "gil",
+          "name": "GIL"
+        }
+      ]
+    },
+    {
+      "id": "asynchrony",
+      "name": "Asynchrony",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "virtualenv",
+      "name": "virtualenv",
+      "prerequisites": []
+    },
+    {
+      "id": "pyenv",
+      "name": "pyenv",
+      "prerequisites": []
+    },
+    {
+      "id": "pipenv",
+      "name": "Pipenv",
+      "prerequisites": []
+    },
+    {
+      "id": "pyprojecttoml",
+      "name": "pyproject.toml",
+      "prerequisites": []
+    },
+    {
+      "id": "pydantic",
+      "name": "Pydantic",
+      "prerequisites": []
+    },
+    {
+      "id": "mypy",
+      "name": "mypy",
+      "prerequisites": []
+    },
+    {
+      "id": "pyright",
+      "name": "pyright",
+      "prerequisites": []
+    },
+    {
+      "id": "pyre",
+      "name": "pyre",
+      "prerequisites": []
+    },
+    {
+      "id": "ruff",
+      "name": "ruff",
+      "prerequisites": []
+    },
+    {
+      "id": "black",
+      "name": "black",
+      "prerequisites": []
+    },
+    {
+      "id": "yapf",
+      "name": "yapf",
+      "prerequisites": []
+    },
+    {
+      "id": "sphinx",
+      "name": "Sphinx",
+      "prerequisites": []
+    },
+    {
+      "id": "doctest",
+      "name": "doctest",
+      "prerequisites": []
+    },
+    {
+      "id": "pytest",
+      "name": "pytest",
+      "prerequisites": [
+        {
+          "id": "functions",
+          "name": "Functions"
+        }
+      ]
+    },
+    {
+      "id": "unittest",
+      "name": "unittest",
+      "prerequisites": []
+    },
+    {
+      "id": "tox",
+      "name": "tox",
+      "prerequisites": []
+    },
+    {
+      "id": "devops",
+      "name": "DevOps",
+      "prerequisites": []
+    }
+  ]
+}
