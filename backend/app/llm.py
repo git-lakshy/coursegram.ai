@@ -12,9 +12,13 @@ and can fall back to non LLM behavior.
 """
 
 import os
+import re
 from typing import Any
 
 import httpx
+
+THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+UNCLOSED_THINK_PATTERN = re.compile(r"<think>.*\Z", re.DOTALL)
 
 PROVIDERS = {
     "groq": {
@@ -70,7 +74,29 @@ def chat_completion(
     max_tokens: int = 2048,
     temperature: float = 0.4,
 ) -> str:
-    """Run a chat completion and return the assistant message content."""
+    """Run a chat completion and return the assistant message content.
+
+    Thinking models can spend the whole budget on hidden reasoning. When
+    the reply comes back empty after stripping, retry once with an explicit
+    instruction to answer directly.
+    """
+    try:
+        return _complete(messages, json_mode, max_tokens, temperature)
+    except LLMError as error:
+        if "no answer" not in str(error):
+            raise
+        nudged = list(messages)
+        last = nudged[-1]
+        nudged[-1] = {**last, "content": last["content"] + "\n\nAnswer directly without showing reasoning."}
+        return _complete(nudged, json_mode, max_tokens, temperature)
+
+
+def _complete(
+    messages: list[dict[str, str]],
+    json_mode: bool,
+    max_tokens: int,
+    temperature: float,
+) -> str:
     base_url, api_key, model = _resolve_provider()
     body: dict[str, Any] = {
         "model": model,
@@ -88,11 +114,39 @@ def chat_completion(
             json=body,
             timeout=TIMEOUT_SECONDS,
         )
+        if response.status_code == 400 and json_mode:
+            # Some models reject structured output; retry without it.
+            body.pop("response_format", None)
+            response = httpx.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=body,
+                timeout=TIMEOUT_SECONDS,
+            )
         response.raise_for_status()
     except httpx.HTTPError as error:
-        raise LLMError(f"LLM provider request failed: {error}") from error
+        detail = ""
+        response = getattr(error, "response", None)
+        if response is not None:
+            detail = f" Provider said: {response.text[:300]}"
+        raise LLMError(f"LLM provider request failed: {error}.{detail}") from error
 
     try:
-        return response.json()["choices"][0]["message"]["content"]
+        content = response.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError, ValueError) as error:
         raise LLMError(f"LLM provider returned an unexpected response: {error}") from error
+    return strip_reasoning(content)
+
+
+def strip_reasoning(content: str) -> str:
+    """Remove reasoning blocks some models emit inside the reply content.
+
+    Thinking models wrap internal reasoning in think tags. Anything after an
+    unclosed tag is pure reasoning, so it is dropped as well.
+    """
+    cleaned = THINK_PATTERN.sub("", content)
+    cleaned = UNCLOSED_THINK_PATTERN.sub("", cleaned)
+    cleaned = cleaned.strip()
+    if not cleaned:
+        raise LLMError("LLM returned only reasoning with no answer")
+    return cleaned

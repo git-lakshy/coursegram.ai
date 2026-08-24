@@ -11,6 +11,7 @@ from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
 from app.auth_security import issue_token, verify_password
 from app.coursera_client import UpstreamError, fetch_courses
+from app.llm import LLMError
 from app.models import LearnerProfile
 from app.onboarding import GradeRequest, GradeResponse, QuizRequest, QuizResponse, generate_quiz, grade_quiz
 from app.profile_store import load_profile, save_profile
@@ -40,6 +41,11 @@ app.add_middleware(
 
 @app.exception_handler(UpstreamError)
 def upstream_error_handler(request, exc: UpstreamError):
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(LLMError)
+def llm_error_handler(request, exc: LLMError):
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 

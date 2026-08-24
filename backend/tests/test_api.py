@@ -70,26 +70,29 @@ def test_roadmap_graph(client):
 
 
 def test_register_login_and_profile(client):
+    import uuid
+
+    email = f"test-{uuid.uuid4().hex[:8]}@example.com"
     register = client.post(
         "/auth/register",
-        json={"email": "test@example.com", "password": "password123", "display_name": "Test"},
+        json={"email": email, "password": "password123", "display_name": "Test"},
     )
     assert register.status_code == 201
     token = register.json()["access_token"]
 
     duplicate = client.post(
-        "/auth/register", json={"email": "test@example.com", "password": "password123"}
+        "/auth/register", json={"email": email, "password": "password123"}
     )
     assert duplicate.status_code == 409
 
     login = client.post(
-        "/auth/login", json={"email": "test@example.com", "password": "password123"}
+        "/auth/login", json={"email": email, "password": "password123"}
     )
     assert login.status_code == 200
     token = login.json()["access_token"]
 
     headers = {"Authorization": f"Bearer {token}"}
-    assert client.get("/auth/me", headers=headers).json()["email"] == "test@example.com"
+    assert client.get("/auth/me", headers=headers).json()["email"] == email
     assert client.get("/profile").status_code == 401
 
     saved = client.put(

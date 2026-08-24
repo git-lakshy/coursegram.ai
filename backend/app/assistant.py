@@ -57,5 +57,5 @@ def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
         messages.append({"role": item.role, "content": item.content})
     messages.append({"role": "user", "content": payload.message})
 
-    reply = llm.chat_completion(messages, max_tokens=800, temperature=0.5)
+    reply = llm.chat_completion(messages, max_tokens=2000, temperature=0.5)
     return ChatResponse(reply=reply)
