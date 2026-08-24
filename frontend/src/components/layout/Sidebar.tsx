@@ -1,10 +1,21 @@
-import { NavLink } from "react-router-dom"
-import { GraduationCap } from "lucide-react"
+import { NavLink, useNavigate } from "react-router-dom"
+import { GraduationCap, LogOut } from "lucide-react"
 
 import { NAV_SECTIONS } from "@/lib/navigation"
+import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { email, profile, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const displayName = profile?.display_name.trim() || email?.split("@")[0] || "Learner"
+  const initials = displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+
   return (
     <div className="flex h-full w-56 flex-col border-r border-border bg-surface">
       <div className="flex h-12 items-center gap-2 border-b border-border px-4">
@@ -44,13 +55,25 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="flex items-center gap-2 border-t border-border px-3 py-2.5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-100 text-xs font-semibold text-accent-700">
-          L
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-100 text-xs font-semibold text-accent-700">
+          {initials || "L"}
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink-primary">Learner</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium capitalize text-ink-primary">{displayName}</p>
           <p className="truncate text-xs text-ink-muted">Free plan</p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            logout()
+            navigate("/login")
+          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-background hover:text-ink-primary"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   )

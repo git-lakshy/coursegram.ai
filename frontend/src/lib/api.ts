@@ -1,10 +1,27 @@
 import { API_BASE_URL } from "@/lib/config"
 import type {
+  AuthResponse,
   CoursesResponse,
   HealthResponse,
+  LearnerProfile,
+  MeResponse,
   RoadmapResponse,
   RoadmapSlugsResponse,
 } from "@/types"
+
+const TOKEN_KEY = "coursegram.token"
+
+export function readToken(): string | null {
+  return window.localStorage.getItem(TOKEN_KEY)
+}
+
+export function storeToken(token: string | null): void {
+  if (token === null) {
+    window.localStorage.removeItem(TOKEN_KEY)
+  } else {
+    window.localStorage.setItem(TOKEN_KEY, token)
+  }
+}
 
 class ApiError extends Error {
   status: number
@@ -15,17 +32,24 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-  const url = new URL(path, API_BASE_URL)
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined && value !== "") {
-        url.searchParams.set(key, String(value))
-      }
-    }
+async function request<T>(
+  path: string,
+  options: { method?: string; body?: unknown; token?: string | null } = {},
+): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json"
+  }
+  if (options.token) {
+    headers["Authorization"] = `Bearer ${options.token}`
   }
 
-  const response = await fetch(url.toString())
+  const response = await fetch(new URL(path, API_BASE_URL).toString(), {
+    method: options.method ?? "GET",
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  })
+
   if (!response.ok) {
     throw new ApiError(`Request to ${path} failed with status ${response.status}`, response.status)
   }
@@ -37,7 +61,7 @@ export function getHealth(): Promise<HealthResponse> {
 }
 
 export function getCourses(topic: string, limit = 20): Promise<CoursesResponse> {
-  return request<CoursesResponse>("/courses", { topic, limit })
+  return request<CoursesResponse>(`/courses?topic=${encodeURIComponent(topic)}&limit=${limit}`)
 }
 
 export function getRoadmapSlugs(): Promise<RoadmapSlugsResponse> {
@@ -46,6 +70,32 @@ export function getRoadmapSlugs(): Promise<RoadmapSlugsResponse> {
 
 export function getRoadmap(slug: string): Promise<RoadmapResponse> {
   return request<RoadmapResponse>(`/roadmaps/${slug}`)
+}
+
+export function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: { email, password, display_name: displayName },
+  })
+}
+
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: { email, password },
+  })
+}
+
+export function getMe(token: string): Promise<MeResponse> {
+  return request<MeResponse>("/auth/me", { token })
+}
+
+export function getProfile(token: string): Promise<LearnerProfile> {
+  return request<LearnerProfile>("/profile", { token })
+}
+
+export function updateProfile(token: string, profile: LearnerProfile): Promise<LearnerProfile> {
+  return request<LearnerProfile>("/profile", { method: "PUT", body: profile, token })
 }
 
 export { ApiError }

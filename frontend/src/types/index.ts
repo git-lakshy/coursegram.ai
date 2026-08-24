@@ -38,3 +38,22 @@ export type SkillCategory = {
   label: string
   topics: string[]
 }
+
+export type SkillLevel = "beginner" | "intermediate" | "advanced"
+
+export type LearnerProfile = {
+  display_name: string
+  background: string
+  skill_level: SkillLevel
+  target_role_slug: string | null
+}
+
+export type AuthResponse = {
+  access_token: string
+  token_type: string
+  email: string
+}
+
+export type MeResponse = {
+  email: string
+}
