@@ -177,14 +177,14 @@ def get_roadmap_graph(slug: str) -> dict:
 
 
 @app.get("/profile")
-def get_profile(user__email: str = Depends(get_current_user_email)) -> LearnerProfile:
+def get_profile(user_email: str = Depends(get_current_user_email)) -> LearnerProfile:
     """Return the authenticated learner's profile, defaults when none exists."""
     return load_profile(user_email)
 
 
 @app.put("/profile")
 def update_profile(
-    profile: LearnerProfile, user__email: str = Depends(get_current_user_email)
+    profile: LearnerProfile, user_email: str = Depends(get_current_user_email)
 ) -> LearnerProfile:
     """Persist the authenticated learner's profile after validating the target role."""
     if (
@@ -199,7 +199,7 @@ def update_profile(
 
 
 @app.get("/auth/me")
-def me(_email: str = Depends(get_current_user_email)) -> dict:
+def me(email: str = Depends(get_current_user_email)) -> dict:
     """Return the authenticated identity, ensuring a user row exists."""
     get_or_create_firebase_user(email)
     return {"email": email}
