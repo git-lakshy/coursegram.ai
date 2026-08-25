@@ -20,7 +20,7 @@ export function buildNotifications(
   if (email !== null) {
     items.push({
       id: "welcome",
-      title: "Welcome to Coursegram.ai",
+      title: "Welcome to Coursegram",
       detail: "Your account is ready. Pick a target role to shape your path.",
       to: "/profile",
     })

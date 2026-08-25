@@ -30,7 +30,7 @@ def build_context(user_email: str, profile, topics: list[str]) -> str:
     known = ", ".join(profile.known_topics[:30]) or "unknown"
     topic_list = ", ".join(topics[:MAX_TOPIC_CONTEXT])
     return (
-        "You are the Coursegram.ai learning assistant. Be concise, practical, "
+        "You are the Coursegram learning assistant. Be concise, practical, "
         "and encouraging. The learner's profile: "
         f"name {profile.display_name or user_email}, level {profile.skill_level}, "
         f"target track {target}, already knows: {known}. "

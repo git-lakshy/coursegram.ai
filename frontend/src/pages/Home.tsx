@@ -59,7 +59,7 @@ export default function Home() {
             <GraduationCap className="h-4 w-4" />
           </span>
           <span className="font-display text-base font-semibold tracking-tight text-ink-primary">
-            Coursegram.ai
+            Coursegram
           </span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-medium text-ink-primary lg:flex">
@@ -126,7 +126,7 @@ export default function Home() {
               <span className="text-accent-700">Achieve Faster.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-secondary">
-              Coursegram.ai builds your personalized roadmap, closes your skill
+              Coursegram builds your personalized roadmap, closes your skill
               gaps, and helps you become job-ready, faster than ever.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">

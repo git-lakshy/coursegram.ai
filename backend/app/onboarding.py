@@ -114,7 +114,7 @@ async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
 
     slugs = list_roadmap_slugs()
     prompt = (
-        "You are the Coursegram.ai onboarding assistant. A learner describes "
+        "You are the Coursegram onboarding assistant. A learner describes "
         "their goal in natural language. Pick the best matching track from the "
         "available tracks and identify the 3 to 6 major skill areas of that "
         "track the learner must master. Respond with JSON only: "
@@ -163,7 +163,7 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
     goal = payload.goal_text or f"master {payload.slug}"
 
     prompt = (
-        "You are the Coursegram.ai path generator. Build a personalized "
+        "You are the Coursegram path generator. Build a personalized "
         f"learning roadmap for a learner whose goal is: {goal}. "
         f"Track: {payload.slug}. Self rated proficiency per skill area: {levels}. "
         f"Topics the learner already knows (skip these): "

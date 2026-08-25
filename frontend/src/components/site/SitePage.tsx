@@ -31,7 +31,7 @@ export function SiteNav() {
             <GraduationCap className="h-4 w-4" />
           </span>
           <span className="text-base font-semibold tracking-tight text-ink-primary">
-            Coursegram.ai
+            Coursegram
           </span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm lg:flex">
@@ -187,7 +187,7 @@ export function SiteFooter() {
                 <GraduationCap className="h-4 w-4" />
               </span>
               <span className="text-base font-semibold tracking-tight text-ink-primary">
-                Coursegram.ai
+                Coursegram
               </span>
             </Link>
             <p className="mt-4 text-sm font-semibold text-ink-primary">Dare to do better.</p>
@@ -236,7 +236,7 @@ export function SiteFooter() {
         </div>
         <div className="border-t border-border/60">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-ink-muted">
-            <span>&copy; {year} Coursegram.ai</span>
+            <span>&copy; {year} Coursegram</span>
             <span>Learn smarter, achieve faster.</span>
           </div>
         </div>

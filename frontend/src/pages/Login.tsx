@@ -117,7 +117,7 @@ export function Login() {
         <div className="mb-6 flex items-center justify-center gap-2">
           <GraduationCap className="h-5 w-5 text-accent-600" />
           <span className="font-display text-base font-semibold tracking-tight text-ink-primary">
-            Coursegram.ai
+            Coursegram
           </span>
         </div>
 

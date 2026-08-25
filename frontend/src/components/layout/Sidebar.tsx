@@ -20,7 +20,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full w-56 flex-col border-r border-border bg-surface">
       <div className="flex h-12 items-center gap-2 border-b border-border px-4">
         <GraduationCap className="h-4 w-4 text-accent-600" />
-        <span className="text-sm font-semibold text-ink-primary">Coursegram.ai</span>
+        <span className="text-sm font-semibold text-ink-primary">Coursegram</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3">
