@@ -51,14 +51,24 @@ export function Login() {
   )
 
   function friendlyError(err: unknown): string {
+    const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : ""
     const message = err instanceof Error ? err.message : ""
-    if (message.includes("email-already-in-use")) return "That email is already registered."
-    if (message.includes("invalid-credential") || message.includes("wrong-password"))
-      return "Invalid email or password."
-    if (message.includes("weak-password")) return "Password must be at least 6 characters."
-    if (message.includes("popup-closed") || message.includes("cancelled-popup"))
+    if (code === "auth/unauthorized-domain")
+      return "This domain is not authorized for Google sign in. Add it in the Firebase console under Authentication > Settings > Authorized domains."
+    if (code === "auth/operation-not-allowed")
+      return "Google sign in is not enabled for this Firebase project. Enable the Google provider in the Firebase console."
+    if (code === "auth/popup-blocked")
+      return "Your browser blocked the sign in popup. Allow popups and try again."
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request")
       return "Google sign in was cancelled."
+    if (code.includes("email-already-in-use")) return "That email is already registered."
+    if (code.includes("invalid-credential") || code.includes("wrong-password"))
+      return "Invalid email or password."
+    if (code.includes("weak-password")) return "Password must be at least 6 characters."
+    if (code.includes("too-many-requests")) return "Too many attempts. Wait a moment and try again."
+    if (code.includes("network-request-failed")) return "Network error. Check your connection and try again."
     if (message.includes("Database is not active")) return message
+    if (code) return `Sign in failed (${code}).`
     return "Something went wrong. Try again."
   }
 
