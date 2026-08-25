@@ -55,13 +55,15 @@ def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
                 "INSERT INTO profiles (email, display_name, background, skill_level, "
                 "target_role_slug, known_topics, onboarding_complete, personalized_roadmap, "
                 "updated_at) VALUES (:email, :display_name, :background, :skill_level, "
-                ":target_role_slug, :known_topics::jsonb, :onboarding_complete, "
-                ":personalized_roadmap::jsonb, now()) "
+                ":target_role_slug, CAST(:known_topics AS jsonb), :onboarding_complete, "
+                "CAST(:personalized_roadmap AS jsonb), now()) "
                 "ON CONFLICT (email) DO UPDATE SET display_name = :display_name, "
                 "background = :background, skill_level = :skill_level, "
-                "target_role_slug = :target_role_slug, known_topics = :known_topics::jsonb, "
+                "target_role_slug = :target_role_slug, "
+                "known_topics = CAST(:known_topics AS jsonb), "
                 "onboarding_complete = :onboarding_complete, "
-                "personalized_roadmap = :personalized_roadmap::jsonb, updated_at = now()"
+                "personalized_roadmap = CAST(:personalized_roadmap AS jsonb), "
+                "updated_at = now()"
             ),
             {
                 "email": user_email,
