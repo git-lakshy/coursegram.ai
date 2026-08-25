@@ -14,7 +14,7 @@ export function Login() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from ?? "/"
+  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard"
   const [mode, setMode] = useState<Mode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

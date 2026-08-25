@@ -12,7 +12,7 @@ export default function NotFound() {
       <p className="text-2xl font-semibold tracking-tight text-ink-primary">404</p>
       <p className="text-sm text-ink-secondary">This page does not exist or has moved.</p>
       <Button variant="accent" asChild>
-        <Link to="/">Back to dashboard</Link>
+        <Link to="/dashboard">Back to dashboard</Link>
       </Button>
     </div>
   )

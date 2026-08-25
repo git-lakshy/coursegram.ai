@@ -12,7 +12,7 @@ const Bookmarks = lazy(() => import("@/pages/Bookmarks").then((m) => ({ default:
 const Courses = lazy(() => import("@/pages/Courses").then((m) => ({ default: m.Courses })))
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })))
 const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })))
-const Landing = lazy(() => import("@/pages/Landing"))
+const Home = lazy(() => import("@/pages/Home"))
 const NotFound = lazy(() => import("@/pages/NotFound"))
 const Onboarding = lazy(() => import("@/pages/Onboarding").then((m) => ({ default: m.Onboarding })))
 const Profile = lazy(() => import("@/pages/Profile").then((m) => ({ default: m.Profile })))
@@ -58,22 +58,9 @@ function RedirectIfAuthed({ children }: { children: ReactNode }) {
     if (profile !== null && !profile.onboarding_complete) {
       return <Navigate to="/onboarding" replace />
     }
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
   return children
-}
-
-function LandingOrDashboard() {
-  const { token, isLoading } = useAuth()
-  if (isLoading) {
-    return <PageFallback />
-  }
-  if (token === null) {
-    return <Landing />
-  }
-  return (
-    <Navigate to="/dashboard" replace />
-  )
 }
 
 function AuthedRoutes() {
@@ -103,7 +90,7 @@ export default function App() {
     <AuthProvider>
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          <Route path="/" element={<LandingOrDashboard />} />
+          <Route path="/" element={<Home />} />
           <Route
             path="/login"
             element={
