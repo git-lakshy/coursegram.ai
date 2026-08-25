@@ -13,6 +13,7 @@ import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useAuth } from "@/hooks/useAuth"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
+import type { RoadmapStage as RoadmapStageType } from "@/types"
 
 export function Roadmap() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
@@ -24,7 +25,17 @@ export function Roadmap() {
   const { completedTopics, toggleTopic } = useLocalProgress(slug)
 
   const topics = roadmapQuery.data?.topics ?? []
-  const stages = groupTopicsIntoStages(slug ?? "roadmap", topics)
+  const personalized = profile?.personalized_roadmap
+  const usePersonalized =
+    personalized !== null && personalized !== undefined && personalized.slug === slug
+  const stages: RoadmapStageType[] = usePersonalized
+    ? personalized.phases.map((phase, index) => ({
+        id: `${slug}-phase-${index + 1}`,
+        name: phase.name,
+        topics: phase.topics,
+        milestone: phase.milestone,
+      }))
+    : groupTopicsIntoStages(slug ?? "roadmap", topics)
 
   if (slug === undefined || slug === null || slug === "") {
     return (
@@ -49,7 +60,11 @@ export function Roadmap() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-ink-primary">My roadmap</h1>
-          <p className="text-sm text-ink-secondary">Track topic by topic progress toward your target role.</p>
+          <p className="text-sm text-ink-secondary">
+            {usePersonalized && personalized
+              ? personalized.summary
+              : "Track topic by topic progress toward your target role."}
+          </p>
         </div>
         {slugsQuery.data && slugsQuery.data.slugs.length > 0 ? (
           <Select value={slug} onChange={(event) => setSelectedSlug(event.target.value)}>

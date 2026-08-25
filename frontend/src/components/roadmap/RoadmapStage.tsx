@@ -31,7 +31,10 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-ink-primary">{stage.name}</p>
-            <p className="truncate text-xs text-ink-muted">{stage.topics.slice(0, 3).join(", ")}</p>
+            <p className="truncate text-xs text-ink-muted">
+              {stage.milestone ? `${stage.milestone} | ` : ""}
+              {stage.topics.slice(0, 3).join(", ")}
+            </p>
           </div>
           <div className="w-24 shrink-0">
             <Progress value={percent} />

@@ -33,8 +33,20 @@ export function Dashboard() {
   const roadmapQuery = useRoadmap(slug)
   const { completedTopics } = useLocalProgress(slug)
 
-  const topics = roadmapQuery.data?.topics ?? []
-  const stages = groupTopicsIntoStages(slug ?? "roadmap", topics)
+  const personalized = profile?.personalized_roadmap
+  const usePersonalized =
+    personalized !== null && personalized !== undefined && personalized.slug === slug
+  const topics = usePersonalized
+    ? personalized.phases.flatMap((phase) => phase.topics)
+    : roadmapQuery.data?.topics ?? []
+  const stages = usePersonalized
+    ? personalized.phases.map((phase, index) => ({
+        id: `${slug}-phase-${index + 1}`,
+        name: phase.name,
+        topics: phase.topics,
+        milestone: phase.milestone,
+      }))
+    : groupTopicsIntoStages(slug ?? "roadmap", topics)
   const nextTopic = topics.find((topic) => !completedTopics.includes(topic))
   const upcomingTopics = topics.filter((topic) => !completedTopics.includes(topic)).slice(0, 5)
 

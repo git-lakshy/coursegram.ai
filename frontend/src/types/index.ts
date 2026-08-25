@@ -31,6 +31,7 @@ export type RoadmapStage = {
   id: string
   name: string
   topics: string[]
+  milestone?: string
 }
 
 export type SkillCategory = {
