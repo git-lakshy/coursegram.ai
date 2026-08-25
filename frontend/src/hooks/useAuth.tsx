@@ -1,28 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-
 import {
-  createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updateProfile,
+  type User,
 } from "firebase/auth"
 
-import {
-  getMe,
-  getProfile,
-  login as apiLogin,
-  readToken,
-  register as apiRegister,
-  storeToken,
-} from "@/lib/api"
-import { firebaseAuth, firebaseEnabled } from "@/lib/firebase"
+import { getMe, getProfile, storeToken } from "@/lib/api"
+import { firebaseAuth } from "@/lib/firebase"
 import type { LearnerProfile } from "@/types"
 
 type AuthState = {
+  user: User | null
   token: string | null
   email: string | null
   profile: LearnerProfile | null
@@ -47,84 +43,82 @@ const DEFAULT_PROFILE: LearnerProfile = {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => readToken())
-  const [email, setEmail] = useState<string | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [profile, setProfileState] = useState<LearnerProfile | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(token !== null)
+  const [isLoading, setIsLoading] = useState(true)
   const queryClient = useQueryClient()
 
-  const applySession = useCallback(async (newToken: string) => {
-    const me = await getMe(newToken)
-    setToken(newToken)
-    setEmail(me.email)
-    storeToken(newToken)
-    try {
-      setProfileState(await getProfile(newToken))
-    } catch {
-      setProfileState(DEFAULT_PROFILE)
+  // Firebase is the single source of truth for the session.
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (nextUser) => {
+      setUser(nextUser)
+      if (nextUser === null) {
+        setToken(null)
+        setProfileState(null)
+        storeToken(null)
+      }
+      setIsLoading(false)
+    })
+    // Keeps the backend token fresh; Firebase refreshes it about every hour.
+    const unsubscribeToken = onIdTokenChanged(firebaseAuth, (nextUser) => {
+      if (nextUser === null) {
+        setToken(null)
+        return
+      }
+      void nextUser.getIdToken().then((idToken) => {
+        setToken(idToken)
+        storeToken(idToken)
+      })
+    })
+    return () => {
+      unsubscribeAuth()
+      unsubscribeToken()
     }
   }, [])
 
+  // Make sure the backend knows the user, then load the profile.
   useEffect(() => {
-    if (token === null) {
-      setIsLoading(false)
-      return
-    }
-    applySession(token)
-      .catch(() => {
-        storeToken(null)
-        setToken(null)
-        setEmail(null)
-        setProfileState(null)
-      })
-      .finally(() => setIsLoading(false))
-  }, [token, applySession])
-
-  const login = useCallback(
-    async (userEmail: string, password: string) => {
-      if (firebaseEnabled && firebaseAuth) {
-        const credential = await signInWithEmailAndPassword(firebaseAuth, userEmail, password)
-        await applySession(await credential.user.getIdToken())
-        return
+    if (user === null || token === null) return
+    let cancelled = false
+    void (async () => {
+      try {
+        await getMe(token)
+        if (cancelled) return
+        try {
+          setProfileState(await getProfile(token))
+        } catch {
+          setProfileState(DEFAULT_PROFILE)
+        }
+      } catch {
+        // Backend unreachable or rejecting the token; leave profile empty.
       }
-      const response = await apiLogin(userEmail, password)
-      await applySession(response.access_token)
-    },
-    [applySession],
-  )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user, token])
+
+  const login = useCallback(async (email: string, password: string) => {
+    await signInWithEmailAndPassword(firebaseAuth, email, password)
+  }, [])
 
   const loginWithGoogle = useCallback(async () => {
-    if (!firebaseEnabled || !firebaseAuth) {
-      throw new Error("Google sign in is not configured")
-    }
-    const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
-    await applySession(await credential.user.getIdToken())
-  }, [applySession])
+    await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
+  }, [])
 
   const register = useCallback(
-    async (userEmail: string, password: string, displayName: string) => {
-      if (firebaseEnabled && firebaseAuth) {
-        const credential = await createUserWithEmailAndPassword(firebaseAuth, userEmail, password)
-        if (displayName.trim() !== "") {
-          await updateProfile(credential.user, { displayName: displayName.trim() })
-        }
-        await applySession(await credential.user.getIdToken())
-        return
+    async (email: string, password: string, displayName: string) => {
+      const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password)
+      if (displayName.trim() !== "") {
+        await updateProfile(credential.user, { displayName: displayName.trim() })
       }
-      const response = await apiRegister(userEmail, password, displayName)
-      await applySession(response.access_token)
     },
-    [applySession],
+    [],
   )
 
   const logout = useCallback(() => {
-    if (firebaseEnabled && firebaseAuth) {
-      void signOut(firebaseAuth)
-    }
-    storeToken(null)
-    setToken(null)
-    setEmail(null)
-    setProfileState(null)
+    void signOut(firebaseAuth)
     queryClient.clear()
   }, [queryClient])
 
@@ -133,8 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ token, email, profile, isLoading, login, loginWithGoogle, register, logout, setProfile }),
-    [token, email, profile, isLoading, login, register, logout, setProfile],
+    () => ({ user, token, email: user?.email ?? null, profile, isLoading, login, loginWithGoogle, register, logout, setProfile }),
+    [user, token, profile, isLoading, login, register, logout, setProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -147,4 +141,3 @@ export function useAuth(): AuthState {
   }
   return context
 }
-

@@ -3,25 +3,20 @@ import { getAuth } from "firebase/auth"
 import { getAnalytics, isSupported } from "firebase/analytics"
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string | undefined,
+  apiKey: "AIzaSyBb4dv3NRdik3_aMTVOsPRQMld9Cdrwe4M",
+  authDomain: "coursegram.firebaseapp.com",
+  projectId: "coursegram",
+  storageBucket: "coursegram.firebasestorage.app",
+  messagingSenderId: "485415200949",
+  appId: "1:485415200949:web:3d128a9b583797c341b6fc",
+  measurementId: "G-GK7E8274PQ",
 }
 
-export const firebaseEnabled: boolean = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId,
-)
+const app = initializeApp(firebaseConfig)
 
-const app = firebaseEnabled ? initializeApp(firebaseConfig) : undefined
-
-export const firebaseAuth = app ? getAuth(app) : undefined
+export const firebaseAuth = getAuth(app)
 
 export async function initFirebaseAnalytics(): Promise<void> {
-  if (!app || !firebaseConfig.measurementId) return
   try {
     if (await isSupported()) {
       getAnalytics(app)

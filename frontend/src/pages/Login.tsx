@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/useAuth"
-import { firebaseEnabled } from "@/lib/firebase"
 
 type Mode = "login" | "register"
 
@@ -126,27 +125,25 @@ export function Login() {
           <h1 className="font-display text-lg font-bold tracking-tight text-ink-primary">{heading}</h1>
           <p className="mt-0.5 text-sm text-ink-secondary">{subheading}</p>
 
-          {firebaseEnabled ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-5 w-full"
-                onClick={handleGoogle}
-                disabled={isBusy}
-              >
-                <GoogleIcon />
-                {googleLabel}
-              </Button>
-              <div className="my-4 flex items-center gap-3">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-xs text-ink-muted">or use email</span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
-            </>
-          ) : null}
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-5 w-full"
+              onClick={handleGoogle}
+              disabled={isBusy}
+            >
+              <GoogleIcon />
+              {googleLabel}
+            </Button>
+            <div className="my-4 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs text-ink-muted">or use email</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
 
-          <form onSubmit={handleSubmit} className={firebaseEnabled ? "space-y-3" : "mt-4 space-y-3"}>
+          <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "register" ? (
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink-secondary">Name</span>

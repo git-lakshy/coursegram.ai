@@ -1,6 +1,5 @@
 import { API_BASE_URL } from "@/lib/config"
 import type {
-  AuthResponse,
   ChatMessage,
   ChatResponse,
   CoursesResponse,
@@ -19,10 +18,6 @@ import type {
 } from "@/types"
 
 const TOKEN_KEY = "coursegram.token"
-
-export function readToken(): string | null {
-  return window.localStorage.getItem(TOKEN_KEY)
-}
 
 export function storeToken(token: string | null): void {
   if (token === null) {
@@ -92,20 +87,6 @@ export function getRoadmap(slug: string): Promise<RoadmapResponse> {
 
 export function getRoadmapGraph(slug: string): Promise<RoadmapGraphResponse> {
   return request<RoadmapGraphResponse>(`/roadmaps/${slug}/graph`)
-}
-
-export function register(email: string, password: string, displayName: string): Promise<AuthResponse> {
-  return request<AuthResponse>("/auth/register", {
-    method: "POST",
-    body: { email, password, display_name: displayName },
-  })
-}
-
-export function login(email: string, password: string): Promise<AuthResponse> {
-  return request<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: { email, password },
-  })
 }
 
 export function getMe(token: string): Promise<MeResponse> {
