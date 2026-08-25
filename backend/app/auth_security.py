@@ -8,12 +8,15 @@ production move to Firebase ID tokens touches only this module.
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import time
 import urllib.request
 
 import jwt
+
+logger = logging.getLogger("app.auth")
 
 SECRET_KEY_PATH = os.path.join(
     os.path.dirname(__file__), "data", "runtime", "dev_secret.key"
@@ -111,8 +114,16 @@ def verify_firebase_token(token: str) -> str:
             options={"verify_exp": True},
         )
     except jwt.PyJWTError as error:
+        logger.warning(
+            "Firebase token verification failed: %s (token alg=%s kid=%s project=%s)",
+            error,
+            header.get("alg") if isinstance(header, dict) else "?",
+            header.get("kid") if isinstance(header, dict) else "?",
+            FIREBASE_PROJECT_ID,
+        )
         raise InvalidToken(f"Invalid Firebase token: {error}") from error
     except OSError as error:
+        logger.warning("Could not fetch Firebase signing keys: %s", error)
         raise InvalidToken("Could not fetch token signing keys") from error
     email = payload.get("email") or ""
     if not email:
@@ -129,7 +140,10 @@ def verify_token(token: str) -> str:
     if firebase_enabled():
         try:
             return verify_firebase_token(token)
-        except InvalidToken:
+        except InvalidToken as error:
+            logger.info(
+                "Firebase verification failed (%s); trying local token path", error
+            )
             if token.startswith(("ey", "e30")):
                 raise
     try:

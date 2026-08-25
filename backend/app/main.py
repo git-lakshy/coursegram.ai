@@ -4,6 +4,7 @@ import asyncio
 import time
 
 import app.config  # loads backend/.env before anything reads the environment
+import logging
 import os
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -13,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
-from app.auth_security import issue_token, verify_password
+from app.auth_security import firebase_enabled, issue_token, verify_password
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app.db import DatabaseNotConfigured
@@ -58,6 +59,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+)
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("app.auth").info(
+    "Auth config: firebase=%s project=%s origins=%s",
+    firebase_enabled(),
+    os.environ.get("FIREBASE_PROJECT_ID", "") or "(not set)",
+    ALLOWED_ORIGINS,
 )
 
 # Simple in memory rate limiter for expensive and auth sensitive endpoints.

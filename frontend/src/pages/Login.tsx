@@ -79,6 +79,7 @@ export function Login() {
       await loginWithGoogle()
       navigate(from, { replace: true })
     } catch (err) {
+      console.error("Google sign in failed:", err)
       setError(friendlyError(err))
     } finally {
       setIsBusy(false)
@@ -97,6 +98,7 @@ export function Login() {
       }
       navigate(from, { replace: true })
     } catch (err) {
+      console.error("Email sign in failed:", err)
       setError(friendlyError(err))
     } finally {
       setIsBusy(false)
