@@ -65,7 +65,7 @@ export default function Home() {
         <nav className="hidden items-center gap-7 text-sm font-medium text-ink-primary lg:flex">
           <Link to="/features" className="transition-colors hover:text-accent-700">Features</Link>
           <Link to="/how-it-works" className="transition-colors hover:text-accent-700">How it Works</Link>
-          <Link to="/roadmap" className="transition-colors hover:text-accent-700">Roadmap</Link>
+          <Link to="/roadmaps" className="transition-colors hover:text-accent-700">Roadmap</Link>
           <Link to="/pricing" className="transition-colors hover:text-accent-700">Pricing</Link>
           <Link to="/institutions" className="transition-colors hover:text-accent-700">For Institutions</Link>
         </nav>

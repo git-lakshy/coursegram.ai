@@ -99,7 +99,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/features" element={<Features />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/roadmap" element={<RoadmapPage />} />
+          <Route path="/roadmaps" element={<RoadmapPage />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/institutions" element={<Institutions />} />
           <Route path="/legal" element={<Legal />} />

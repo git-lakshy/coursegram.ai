@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth"
 const NAV_LINKS = [
   { label: "Features", to: "/features" },
   { label: "How it Works", to: "/how-it-works" },
-  { label: "Roadmap", to: "/roadmap" },
+  { label: "Roadmap", to: "/roadmaps" },
   { label: "Pricing", to: "/pricing" },
   { label: "For Institutions", to: "/institutions" },
 ]
@@ -86,7 +86,7 @@ const FOOTER_COLUMNS = [
     title: "Product",
     links: [
       { label: "Features", to: "/features" },
-      { label: "Roadmap", to: "/roadmap" },
+      { label: "Roadmap", to: "/roadmaps" },
       { label: "AI Assistant", href: "#" },
       { label: "Projects", href: "#" },
       { label: "Assessments", href: "#" },
