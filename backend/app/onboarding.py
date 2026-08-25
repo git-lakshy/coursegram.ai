@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from app import llm
 from app.roadmap_store import RoadmapNotFound, list_roadmap_slugs, load_roadmap_topics
 
-QUIZ_QUESTION_COUNT = 6
+QUIZ_QUESTION_COUNT = 4
 
 
 class GoalRequest(BaseModel):
@@ -35,15 +35,10 @@ class GoalAnalysisResponse(BaseModel):
     areas: list[GoalArea]
 
 
-class AreaLevel(BaseModel):
-    area: str
-    level: str = Field(pattern="^(beginner|intermediate|advanced)$")
-
-
 class PlanRequest(BaseModel):
     slug: str
     goal_text: str = ""
-    area_levels: list[AreaLevel] = Field(default_factory=list)
+    area_levels: dict[str, str] = Field(default_factory=dict)
     known_topics: list[str] = Field(default_factory=list)
 
 
@@ -164,7 +159,7 @@ def generate_plan(payload: PlanRequest) -> PlanResponse:
 
     known = set(topic.lower() for topic in payload.known_topics)
     remaining = [topic for topic in topics if topic.lower() not in known]
-    levels = ", ".join(f"{item.area}: {item.level}" for item in payload.area_levels) or "unknown"
+    levels = ", ".join(f"{area}: {level}" for area, level in payload.area_levels.items()) or "unknown"
     goal = payload.goal_text or f"master {payload.slug}"
 
     prompt = (
@@ -175,7 +170,7 @@ def generate_plan(payload: PlanRequest) -> PlanResponse:
         f"{', '.join(payload.known_topics) if payload.known_topics else 'none'}.\n"
         "Use this ordered reference topic list from the track as the source of "
         "truth, taking topics verbatim where possible:\n"
-        f"{'; '.join(remaining[:80])}\n\n"
+        f"{'; '.join(remaining[:50])}\n\n"
         "Produce 3 to 5 sequential phases. Each phase has a short name, one "
         "concrete milestone the learner can demonstrate, and its topics taken "
         "from the reference list. If the learner rated an area intermediate or "

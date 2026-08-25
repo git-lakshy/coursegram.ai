@@ -105,6 +105,21 @@ export function Onboarding() {
     }
   }
 
+  async function buildPlan() {
+    if (token === null) return
+    setIsBusy(true)
+    setError(null)
+    try {
+      const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
+      setPlan(built)
+      setStep(3)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
   async function finishQuiz() {
     if (token === null) return
     setIsBusy(true)
@@ -120,6 +135,11 @@ export function Onboarding() {
     } finally {
       setIsBusy(false)
     }
+  }
+
+  function skipQuiz() {
+    setResult(null)
+    buildPlan()
   }
 
   async function startLearning() {
@@ -366,15 +386,20 @@ export function Onboarding() {
           {step === 1 ? (
             <Button size="sm" variant="accent" onClick={startQuiz} disabled={isBusy}>
               {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-              Start placement quiz
+              Quick analysis
             </Button>
           ) : null}
-          {step === 2 ? (
-            <Button size="sm" variant="accent" onClick={finishQuiz} disabled={isBusy}>
-              {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Finish quiz
-            </Button>
-          ) : null}
+            {step === 2 ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={skipQuiz} disabled={isBusy}>
+                  Skip
+                </Button>
+                <Button size="sm" variant="accent" onClick={finishQuiz} disabled={isBusy}>
+                  {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Finish quiz
+                </Button>
+              </div>
+            ) : null}
           {step === 3 ? (
             <Button size="sm" variant="accent" onClick={startLearning} disabled={isBusy}>
               {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
