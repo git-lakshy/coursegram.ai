@@ -91,15 +91,22 @@ class GradeResponse(BaseModel):
 
 
 def _parse_json(raw: str) -> dict:
-    """Parse an LLM JSON reply, tolerating code fences around it."""
+    """Parse an LLM JSON reply, tolerating prose or fences around the object."""
     cleaned = raw.strip()
     fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", cleaned, re.DOTALL)
     if fence:
-        cleaned = fence.group(1)
+        cleaned = fence.group(1).strip()
     try:
         data = json.loads(cleaned)
-    except ValueError as error:
-        raise HTTPException(status_code=502, detail=f"LLM returned invalid JSON: {error}")
+    except ValueError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start == -1 or end <= start:
+            raise HTTPException(status_code=502, detail="LLM reply contained no JSON object")
+        try:
+            data = json.loads(cleaned[start : end + 1])
+        except ValueError as error:
+            raise HTTPException(status_code=502, detail=f"LLM returned invalid JSON: {error}")
     if not isinstance(data, dict):
         raise HTTPException(status_code=502, detail="LLM returned unexpected JSON shape")
     return data
@@ -242,11 +249,8 @@ def generate_quiz(payload: QuizRequest) -> QuizResponse:
         json_mode=True,
         temperature=0.6,
     )
-    try:
-        data = json.loads(raw)
-        questions = [QuizQuestion(**item) for item in data["questions"]]
-    except (ValueError, KeyError, TypeError) as error:
-        raise HTTPException(status_code=502, detail=f"Quiz generation failed: {error}")
+    data = _parse_json(raw)
+    questions = [QuizQuestion(**item) for item in data.get("questions", [])]
     if not questions:
         raise HTTPException(status_code=502, detail="Quiz generation returned no questions")
     return QuizResponse(slug=payload.slug, questions=questions[:QUIZ_QUESTION_COUNT])

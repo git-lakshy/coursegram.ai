@@ -101,7 +101,7 @@ def _complete(
     max_tokens: int,
     temperature: float,
 ) -> str:
-    base_url, api_key, model = _resolve_provider()[1:]
+    provider_name, base_url, api_key, model = _resolve_provider()
     body: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -110,6 +110,10 @@ def _complete(
     }
     if json_mode:
         body["response_format"] = {"type": "json_object"}
+    if provider_name == "nvidia":
+        # Thinking mode burns the token budget on hidden reasoning; the
+        # product needs direct answers.
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     if base_url.startswith("https://api.groq.com"):
         # Reasoning models on Groq can spend the entire budget thinking.
         # Hidden reasoning keeps the final answer in content.

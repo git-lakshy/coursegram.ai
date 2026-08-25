@@ -59,6 +59,15 @@ def _fallback_categories(topics: list[str]) -> list[dict]:
     return categories
 
 
+def _load_json(raw: str):
+    """Parse an LLM JSON reply, tolerating code fences around it."""
+    cleaned = raw.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", cleaned, re.DOTALL)
+    if fence:
+        cleaned = fence.group(1).strip()
+    return json.loads(cleaned)
+
+
 def get_categories(slug: str) -> dict:
     """Return meaningful skill categories for a track, cached after first run."""
     try:
@@ -95,8 +104,9 @@ def get_categories(slug: str) -> dict:
                 [{"role": "user", "content": prompt}],
                 json_mode=True,
                 temperature=0.2,
+                max_tokens=4096,
             )
-            categories = _valid_categories(json.loads(raw))
+            categories = _valid_categories(_load_json(raw))
         except (llm.LLMError, ValueError):
             categories = None
         if categories is None:
