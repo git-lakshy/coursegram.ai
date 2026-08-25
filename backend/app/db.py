@@ -54,6 +54,9 @@ def get_engine():
         # SQLAlchemy needs the postgresql:// scheme; hosts often hand out postgres://
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
+        # Only psycopg (v3) is installed; force its dialect explicitly.
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         _engine = create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
         with _engine.begin() as connection:
             connection.execute(text(SCHEMA))
