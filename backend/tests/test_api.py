@@ -68,30 +68,84 @@ def test_courses_upstream_failure(client, monkeypatch):
     assert client.get("/courses").status_code == 502
 
 
-def test_roadmap_slugs(client):
-    slugs = client.get("/roadmaps").json()["slugs"]
+FAKE_TOPICS = {
+    "python": ["Variables", "Functions", "Loops"],
+    "frontend": ["HTML", "CSS", "JavaScript"],
+}
+FAKE_GRAPHS = {
+    "python": {
+        "slug": "python",
+        "nodes": [
+            {"id": "variables", "label": "Variables", "prerequisites": []},
+            {"id": "functions", "label": "Functions", "prerequisites": ["variables"]},
+        ],
+    },
+    "frontend": {
+        "slug": "frontend",
+        "nodes": [{"id": "html", "label": "HTML", "prerequisites": []}],
+    },
+}
+
+
+@pytest.fixture()
+def fake_roadmaps(client, monkeypatch):
+    import app.main as main_mod
+
+    monkeypatch.setattr(main_mod, "list_roadmap_slugs", lambda: sorted(FAKE_TOPICS))
+    monkeypatch.setattr(
+        main_mod,
+        "load_roadmap_topics",
+        lambda slug: FAKE_TOPICS.get(slug) or _raise(main_mod.RoadmapNotFound(slug)),
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "load_roadmap_graph",
+        lambda slug: FAKE_GRAPHS.get(slug) or _raise(main_mod.RoadmapNotFound(slug)),
+    )
+    return client
+
+
+def _raise(error):
+    raise error
+
+
+def test_roadmap_slugs(fake_roadmaps):
+    slugs = fake_roadmaps.get("/roadmaps").json()["slugs"]
     assert "python" in slugs
     assert "frontend" in slugs
 
 
-def test_roadmap_topics(client):
-    body = client.get("/roadmaps/python").json()
+def test_roadmap_topics(fake_roadmaps):
+    body = fake_roadmaps.get("/roadmaps/python").json()
     assert body["slug"] == "python"
-    assert body["topic_count"] > 0
+    assert body["topic_count"] == 3
 
 
-def test_roadmap_unknown_slug(client):
-    assert client.get("/roadmaps/does-not-exist").status_code == 404
+def test_roadmap_unknown_slug(fake_roadmaps):
+    assert fake_roadmaps.get("/roadmaps/does-not-exist").status_code == 404
 
 
-def test_roadmap_traversal_slug_rejected(client):
-    assert client.get("/roadmaps/..%2F..%2Fsecrets").status_code == 404
+def test_roadmap_traversal_slug_rejected(fake_roadmaps):
+    assert fake_roadmaps.get("/roadmaps/..%2F..%2Fsecrets").status_code == 404
 
 
-def test_roadmap_graph(client):
-    body = client.get("/roadmaps/python/graph").json()
-    assert body["node_count"] > 0
+def test_roadmap_graph(fake_roadmaps):
+    body = fake_roadmaps.get("/roadmaps/python/graph").json()
+    assert body["node_count"] == 2
     assert all("prerequisites" in node for node in body["nodes"])
+
+
+def test_roadmaps_database_down(client, monkeypatch):
+    import app.main as main_mod
+    from app.db import DatabaseNotConfigured
+
+    def raise_db():
+        raise DatabaseNotConfigured("connection refused")
+
+    monkeypatch.setattr(main_mod, "list_roadmap_slugs", raise_db)
+    response = client.get("/roadmaps")
+    assert response.status_code == 503
+    assert "administrator" in response.json()["detail"]
 
 
 @requires_database

@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS roadmaps (
+    slug TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    topics JSONB NOT NULL DEFAULT '[]'::jsonb,
+    graph JSONB,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS profiles (
     email TEXT PRIMARY KEY REFERENCES users(email) ON DELETE CASCADE,
     display_name TEXT NOT NULL DEFAULT '',
