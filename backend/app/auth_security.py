@@ -12,7 +12,9 @@ import os
 import secrets
 import time
 
-SECRET_KEY_PATH = os.path.join(os.path.dirname(__file__), "data", "dev_secret.key")
+SECRET_KEY_PATH = os.path.join(
+    os.path.dirname(__file__), "data", "runtime", "dev_secret.key"
+)
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
 PBKDF2_ITERATIONS = 200_000
 

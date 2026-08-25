@@ -12,7 +12,7 @@ from threading import Lock
 
 from app.auth_security import hash_password
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "runtime")
 USERS_PATH = os.path.join(DATA_DIR, "users.json")
 
 _lock = Lock()

@@ -11,7 +11,7 @@ from threading import Lock
 
 from app.models import LearnerProfile
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "runtime")
 PROFILES_PATH = os.path.join(DATA_DIR, "profiles.json")
 
 _lock = Lock()
