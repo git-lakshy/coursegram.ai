@@ -107,7 +107,7 @@ def _parse_json(raw: str) -> dict:
     return data
 
 
-def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
+async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
     """Parse a free text goal into a track and major skill areas."""
     if not llm.is_configured():
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
@@ -124,7 +124,7 @@ def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
         f"Available track slugs: {', '.join(slugs)}.\n"
         f"Learner goal: {payload.goal_text}"
     )
-    raw = llm.chat_completion(
+    raw = await llm.chat_completion(
         [{"role": "user", "content": prompt}],
         json_mode=True,
         temperature=0.2,
@@ -147,7 +147,7 @@ def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
     )
 
 
-def generate_plan(payload: PlanRequest) -> PlanResponse:
+async def generate_plan(payload: PlanRequest) -> PlanResponse:
     """Generate a personalized roadmap from the track reference data."""
     if not llm.is_configured():
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
@@ -179,7 +179,7 @@ def generate_plan(payload: PlanRequest) -> PlanResponse:
         '{"summary": "one sentence describing the path", "phases": '
         '[{"name": "...", "milestone": "...", "topics": ["..."]}]}'
     )
-    raw = llm.chat_completion(
+    raw = await llm.chat_completion(
         [{"role": "user", "content": prompt}],
         json_mode=True,
         temperature=0.3,
@@ -214,7 +214,7 @@ def personalize(payload: PlanResponse) -> dict:
     }
 
 
-def generate_quiz(payload: QuizRequest) -> QuizResponse:
+async def generate_quiz(payload: QuizRequest) -> QuizResponse:
     """Ask the LLM for placement questions on the track's topics."""
     try:
         topics = load_roadmap_topics(payload.slug)
@@ -239,7 +239,7 @@ def generate_quiz(payload: QuizRequest) -> QuizResponse:
         '"topic": "..."}]}. '
         "Do not include any text outside the JSON."
     )
-    raw = llm.chat_completion(
+    raw = await llm.chat_completion(
         [{"role": "user", "content": prompt}],
         json_mode=True,
         temperature=0.6,
@@ -278,3 +278,4 @@ def grade_quiz(payload: GradeRequest) -> GradeResponse:
     else:
         summary = "Strong across all quiz topics."
     return GradeResponse(score=score, total=total, recommended_level=level, summary=summary)
+

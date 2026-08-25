@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { GraduationCap } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,8 @@ type Mode = "login" | "register"
 export function Login() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from ?? "/"
   const [mode, setMode] = useState<Mode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -35,7 +37,7 @@ export function Login() {
       } else {
         await register(email, password, displayName)
       }
-      navigate("/", { replace: true })
+      navigate(from, { replace: true })
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0
       setError(

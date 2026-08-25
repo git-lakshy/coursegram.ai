@@ -22,10 +22,17 @@ _secret_key: bytes | None = None
 
 
 def _get_secret_key() -> bytes:
-    """Load or lazily create a local signing key. In production Firebase
-    verifies tokens instead, so this key never leaves development."""
+    """Resolve the token signing key.
+
+    Production deployments set SECRET_KEY in the environment. Development
+    falls back to a locally generated key file so nothing breaks offline.
+    """
     global _secret_key
     if _secret_key is not None:
+        return _secret_key
+    env_key = os.environ.get("SECRET_KEY", "").strip()
+    if env_key:
+        _secret_key = env_key.encode("utf-8")
         return _secret_key
     os.makedirs(os.path.dirname(SECRET_KEY_PATH), exist_ok=True)
     if os.path.exists(SECRET_KEY_PATH):

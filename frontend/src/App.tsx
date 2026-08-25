@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react"
 import type { ReactNode } from "react"
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Location, Navigate, Route, Routes, useLocation } from "react-router-dom"
 
 import { AppShell } from "@/components/layout/AppShell"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,6 +12,7 @@ const Bookmarks = lazy(() => import("@/pages/Bookmarks").then((m) => ({ default:
 const Courses = lazy(() => import("@/pages/Courses").then((m) => ({ default: m.Courses })))
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })))
 const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })))
+const NotFound = lazy(() => import("@/pages/NotFound"))
 const Onboarding = lazy(() => import("@/pages/Onboarding").then((m) => ({ default: m.Onboarding })))
 const Profile = lazy(() => import("@/pages/Profile").then((m) => ({ default: m.Profile })))
 const Projects = lazy(() => import("@/pages/Projects").then((m) => ({ default: m.Projects })))
@@ -32,16 +33,31 @@ function PageFallback() {
   )
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
+function RequireAuth({ children, allowIncomplete = false }: { children: ReactNode; allowIncomplete?: boolean }) {
   const { token, profile, isLoading } = useAuth()
+  const location: Location = useLocation()
   if (isLoading) {
     return <PageFallback />
   }
   if (token === null) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
-  if (profile !== null && !profile.onboarding_complete) {
+  if (!allowIncomplete && profile !== null && !profile.onboarding_complete) {
     return <Navigate to="/onboarding" replace />
+  }
+  return children
+}
+
+function RedirectIfAuthed({ children }: { children: ReactNode }) {
+  const { token, profile, isLoading } = useAuth()
+  if (isLoading) {
+    return <PageFallback />
+  }
+  if (token !== null) {
+    if (profile !== null && !profile.onboarding_complete) {
+      return <Navigate to="/onboarding" replace />
+    }
+    return <Navigate to="/" replace />
   }
   return children
 }
@@ -61,7 +77,7 @@ function AuthedRoutes() {
           <Route path="/bookmarks" element={<Bookmarks />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </AppShell>
@@ -71,18 +87,34 @@ function AuthedRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route
-          path="*"
-          element={
-            <RequireAuth>
-              <AuthedRoutes />
-            </RequireAuth>
-          }
-        />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <RedirectIfAuthed>
+                <Login />
+              </RedirectIfAuthed>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <RequireAuth allowIncomplete>
+                <Onboarding />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <RequireAuth>
+                <AuthedRoutes />
+              </RequireAuth>
+            }
+          />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   )
 }

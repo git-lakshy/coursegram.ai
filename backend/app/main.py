@@ -1,8 +1,12 @@
 """FastAPI application exposing course listings and roadmap topic references."""
 
+import asyncio
+import time
+
 import app.config  # loads backend/.env before anything reads the environment
+import os
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -12,7 +16,7 @@ from app.auth import get_current_user_email
 from app.auth_security import issue_token, verify_password
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
-from app.llm import LLMError
+from app.llm import LLMError, close_client
 from app.models import LearnerProfile
 from app.onboarding import (
     GoalAnalysisResponse,
@@ -38,11 +42,14 @@ from app.roadmap_store import (
 )
 from app.user_store import UserNotFound, UserAlreadyExists, create_user, get_user_record
 
-app = FastAPI(title="Coursegram API", version="0.3.1")
+app = FastAPI(title="Coursegram API", version="1.0.0")
 
 ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    origin.strip()
+    for origin in os.environ.get(
+        "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if origin.strip()
 ]
 
 app.add_middleware(
@@ -53,6 +60,38 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+# Simple in memory rate limiter for expensive and auth sensitive endpoints.
+# Per client key sliding window; good enough for a single process deployment.
+RATE_LIMITS: dict[str, tuple[int, float]] = {
+    "/auth/register": (10, 60.0),
+    "/auth/login": (10, 60.0),
+    "/onboarding/goal": (10, 60.0),
+    "/onboarding/quiz": (10, 60.0),
+    "/onboarding/plan": (10, 60.0),
+    "/assistant/chat": (20, 60.0),
+    "/courses": (30, 60.0),
+}
+_rate_buckets: dict[str, list[float]] = {}
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    limit = RATE_LIMITS.get(request.url.path)
+    if limit is not None:
+        max_requests, window = limit
+        client_ip = request.client.host if request.client else "unknown"
+        key = f"{request.url.path}:{client_ip}"
+        now = time.monotonic()
+        bucket = [t for t in _rate_buckets.get(key, []) if now - t < window]
+        if len(bucket) >= max_requests:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests, slow down a little."},
+            )
+        bucket.append(now)
+        _rate_buckets[key] = bucket
+    return await call_next(request)
+
 
 @app.exception_handler(UpstreamError)
 def upstream_error_handler(request, exc: UpstreamError):
@@ -62,6 +101,19 @@ def upstream_error_handler(request, exc: UpstreamError):
 @app.exception_handler(LLMError)
 def llm_error_handler(request, exc: LLMError):
     return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please try again later."},
+    )
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_client()
 
 
 @app.get("/health")
@@ -183,11 +235,11 @@ def me(email: str = Depends(get_current_user_email)) -> dict:
     return {"email": email}
 
 @app.post("/onboarding/quiz")
-def onboarding_quiz(
+async def onboarding_quiz(
     payload: QuizRequest, email: str = Depends(get_current_user_email)
 ) -> QuizResponse:
     """Generate a placement quiz for the chosen track via the LLM."""
-    return generate_quiz(payload)
+    return await generate_quiz(payload)
 
 
 @app.post("/onboarding/grade")
@@ -199,33 +251,35 @@ def onboarding_grade(
 
 
 @app.post("/assistant/chat")
-def assistant_chat(
+async def assistant_chat(
     payload: ChatRequest, email: str = Depends(get_current_user_email)
 ) -> ChatResponse:
     """Reply to a learner question with profile and track context."""
     profile = load_profile(email)
-    return chat(email, profile, payload)
+    return await chat(email, profile, payload)
 
 @app.get("/roadmaps/{slug}/categories")
-def get_roadmap_categories(slug: str) -> dict:
+async def get_roadmap_categories(slug: str) -> dict:
     """Return meaningful skill categories for a track, cached after first run."""
     try:
-        return get_categories(slug)
+        return await get_categories(slug)
     except RoadmapNotFound:
         raise HTTPException(status_code=404, detail="Unknown roadmap slug")
 
 
 @app.post("/onboarding/goal")
-def onboarding_goal(
+async def onboarding_goal(
     payload: GoalRequest, email: str = Depends(get_current_user_email)
 ) -> GoalAnalysisResponse:
     """Parse a free text learning goal into a track and skill areas."""
-    return analyze_goal(payload)
+    return await analyze_goal(payload)
 
 
 @app.post("/onboarding/plan")
-def onboarding_plan(
+async def onboarding_plan(
     payload: PlanRequest, email: str = Depends(get_current_user_email)
 ) -> PlanResponse:
     """Generate a personalized roadmap from the track reference data."""
-    return generate_plan(payload)
+    return await generate_plan(payload)
+
+

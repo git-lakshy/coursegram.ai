@@ -68,7 +68,7 @@ def _load_json(raw: str):
     return json.loads(cleaned)
 
 
-def get_categories(slug: str) -> dict:
+async def get_categories(slug: str) -> dict:
     """Return meaningful skill categories for a track, cached after first run."""
     try:
         topics = load_roadmap_topics(slug)
@@ -100,7 +100,7 @@ def get_categories(slug: str) -> dict:
             "Topics: " + "; ".join(sample)
         )
         try:
-            raw = llm.chat_completion(
+            raw = await llm.chat_completion(
                 [{"role": "user", "content": prompt}],
                 json_mode=True,
                 temperature=0.2,
@@ -117,3 +117,4 @@ def get_categories(slug: str) -> dict:
     with open(cache, "w", encoding="utf-8") as file:
         json.dump({"slug": slug, "categories": categories}, file, ensure_ascii=False, indent=2)
     return {"slug": slug, "categories": categories}
+

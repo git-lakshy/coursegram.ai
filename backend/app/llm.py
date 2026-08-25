@@ -1,24 +1,23 @@
-"""LLM client abstraction over OpenAI compatible chat completion APIs.
+"""Async LLM client over OpenAI compatible chat completion APIs.
 
 Supported providers, selected with the LLM_PROVIDER environment variable:
 
 - groq: free tier, needs GROQ_API_KEY, default model llama-3.1-8b-instant
 - nvidia: NVIDIA NIM, needs NVIDIA_API_KEY, default model
-  meta/llama-3.1-8b-instruct
+  google/diffusiongemma-26b-a4b-it
 
-Both expose an OpenAI compatible chat completions endpoint, so one client
-covers them. When no key is configured the caller receives LLMNotConfigured
-and can fall back to non LLM behavior.
+One shared AsyncClient with connection pooling serves all requests so
+concurrent users reuse connections instead of opening new ones.
 """
 
+import asyncio
+import json
 import os
 import re
+import time
 from typing import Any
 
 import httpx
-
-THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
-UNCLOSED_THINK_PATTERN = re.compile(r"<think>.*\Z", re.DOTALL)
 
 PROVIDERS = {
     "groq": {
@@ -29,12 +28,19 @@ PROVIDERS = {
     "nvidia": {
         "base_url": "https://integrate.api.nvidia.com/v1",
         "api_key_env": "NVIDIA_API_KEY",
-        "default_model": "meta/llama-3.1-8b-instruct",
+        "default_model": "google/diffusiongemma-26b-a4b-it",
     },
 }
 
 DEFAULT_PROVIDER = "groq"
-TIMEOUT_SECONDS = 120
+TIMEOUT_SECONDS = 90
+MAX_RETRIES = 4
+
+THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+UNCLOSED_THINK_PATTERN = re.compile(r"<think>.*\Z", re.DOTALL)
+
+_client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
 
 
 class LLMError(Exception):
@@ -43,6 +49,25 @@ class LLMError(Exception):
 
 class LLMNotConfigured(LLMError):
     pass
+
+
+async def get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None:
+        async with _client_lock:
+            if _client is None:
+                _client = httpx.AsyncClient(
+                    timeout=TIMEOUT_SECONDS,
+                    limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+                )
+    return _client
+
+
+async def close_client() -> None:
+    global _client
+    if _client is not None:
+        await _client.aclose()
+        _client = None
 
 
 def _resolve_provider() -> tuple[str, str, str, str]:
@@ -68,7 +93,21 @@ def is_configured() -> bool:
         return False
 
 
-def chat_completion(
+def strip_reasoning(content: str) -> str:
+    """Remove reasoning blocks some models emit inside the reply content.
+
+    Thinking models wrap internal reasoning in think tags. Anything after an
+    unclosed tag is pure reasoning, so it is dropped as well.
+    """
+    cleaned = THINK_PATTERN.sub("", content)
+    cleaned = UNCLOSED_THINK_PATTERN.sub("", cleaned)
+    cleaned = cleaned.strip()
+    if not cleaned:
+        raise LLMError("LLM returned only reasoning with no answer")
+    return cleaned
+
+
+async def chat_completion(
     messages: list[dict[str, str]],
     json_mode: bool = False,
     max_tokens: int = 2048,
@@ -76,26 +115,25 @@ def chat_completion(
 ) -> str:
     """Run a chat completion and return the assistant message content.
 
-    Thinking models can spend the whole budget on hidden reasoning. When
-    the reply comes back empty after stripping, retry once with an explicit
-    instruction to answer directly.
+    Retries rate limits with server provided waits and retries empty
+    reasoning only replies once with an explicit answer now instruction.
     """
     try:
-        return _complete(messages, json_mode, max_tokens, temperature)
+        return await _complete(messages, json_mode, max_tokens, temperature)
     except LLMError as error:
         if "no answer" not in str(error):
             raise
+        _, _, _, model = _resolve_provider()
         nudged = list(messages)
         last = nudged[-1]
         suffix = "\n\nAnswer directly without showing reasoning."
-        _, _, _, retry_model = _resolve_provider()
-        if "qwen" in retry_model.lower():
+        if "qwen" in model.lower():
             suffix += " /no_think"
         nudged[-1] = {**last, "content": last["content"] + suffix}
-        return _complete(nudged, json_mode, max_tokens, temperature)
+        return await _complete(nudged, json_mode, max_tokens, temperature)
 
 
-def _complete(
+async def _complete(
     messages: list[dict[str, str]],
     json_mode: bool,
     max_tokens: int,
@@ -114,19 +152,13 @@ def _complete(
         # Thinking mode burns the token budget on hidden reasoning; the
         # product needs direct answers.
         body["chat_template_kwargs"] = {"enable_thinking": False}
-    if base_url.startswith("https://api.groq.com"):
+    if provider_name == "groq":
         # Reasoning models on Groq can spend the entire budget thinking.
         # Hidden reasoning keeps the final answer in content.
         body["reasoning_format"] = "hidden"
 
-    try:
-        response = _post_with_backoff(base_url, api_key, body)
-    except httpx.HTTPError as error:
-        detail = ""
-        error_response = getattr(error, "response", None)
-        if error_response is not None:
-            detail = f" Provider said: {error_response.text[:300]}"
-        raise LLMError(f"LLM provider request failed: {error}.{detail}") from error
+    client = await get_client()
+    response = await _post_with_backoff(client, base_url, api_key, body)
 
     try:
         message = response.json()["choices"][0]["message"]
@@ -139,49 +171,43 @@ def _complete(
     return strip_reasoning(str(content))
 
 
-def _post_with_backoff(base_url: str, api_key: str, body: dict, attempts: int = 5):
+async def _post_with_backoff(
+    client: httpx.AsyncClient,
+    base_url: str,
+    api_key: str,
+    body: dict,
+    attempts: int = MAX_RETRIES,
+) -> httpx.Response:
     """POST the completion, retrying rate limits with server provided waits."""
-    import time
-
-    response = None
+    response: httpx.Response | None = None
     for attempt in range(attempts):
-        response = httpx.post(
-            f"{base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json=body,
-            timeout=TIMEOUT_SECONDS,
-        )
+        try:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=body,
+            )
+        except httpx.TimeoutException:
+            if attempt < attempts - 1:
+                await asyncio.sleep(1.0)
+                continue
+            raise
         if response.status_code == 429 and attempt < attempts - 1:
             retry_after = response.headers.get("retry-after")
             delay = float(retry_after) if retry_after else 2.0 * (attempt + 1)
-            time.sleep(min(max(delay, 1.0), 45))
+            await asyncio.sleep(min(max(delay, 1.0), 45))
             continue
         break
 
+    assert response is not None
     if response.status_code == 400 and body.get("response_format"):
         # Some models reject structured output; retry without it.
-        body = {**body, "response_format": None}
-        del body["response_format"]
-        response = httpx.post(
+        body = {key: value for key, value in body.items() if key != "response_format"}
+        response = await client.post(
             f"{base_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json=body,
-            timeout=TIMEOUT_SECONDS,
         )
 
     response.raise_for_status()
     return response
-
-
-def strip_reasoning(content: str) -> str:
-    """Remove reasoning blocks some models emit inside the reply content.
-
-    Thinking models wrap internal reasoning in think tags. Anything after an
-    unclosed tag is pure reasoning, so it is dropped as well.
-    """
-    cleaned = THINK_PATTERN.sub("", content)
-    cleaned = UNCLOSED_THINK_PATTERN.sub("", cleaned)
-    cleaned = cleaned.strip()
-    if not cleaned:
-        raise LLMError("LLM returned only reasoning with no answer")
-    return cleaned

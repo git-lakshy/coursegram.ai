@@ -40,7 +40,7 @@ def build_context(user_email: str, profile, topics: list[str]) -> str:
     )
 
 
-def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
+async def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
     """Return an LLM reply grounded in the learner profile and track."""
     if not llm.is_configured():
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
@@ -57,5 +57,6 @@ def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
         messages.append({"role": item.role, "content": item.content})
     messages.append({"role": "user", "content": payload.message})
 
-    reply = llm.chat_completion(messages, max_tokens=2000, temperature=0.5)
+    reply = await llm.chat_completion(messages, max_tokens=2000, temperature=0.5)
     return ChatResponse(reply=reply)
+
