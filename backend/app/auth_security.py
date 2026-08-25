@@ -15,6 +15,7 @@ import time
 import urllib.request
 
 import jwt
+from cryptography.x509 import load_pem_x509_certificate
 
 logger = logging.getLogger("app.auth")
 
@@ -105,9 +106,12 @@ def verify_firebase_token(token: str) -> str:
     try:
         header = jwt.get_unverified_header(token)
         certs = _get_firebase_certs()
+        if header["kid"] not in certs:
+            raise InvalidToken("Unknown token signing key")
+        cert = load_pem_x509_certificate(certs[header["kid"]].encode("utf-8"))
         payload = jwt.decode(
             token,
-            certs[header["kid"]],
+            cert.public_key(),
             algorithms=["RS256"],
             audience=FIREBASE_PROJECT_ID,
             issuer=f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}",
