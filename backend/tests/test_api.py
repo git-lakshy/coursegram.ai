@@ -1,5 +1,6 @@
 """Endpoint tests. Coursera calls are mocked; no network access needed."""
 
+import datetime
 import os
 
 import pytest
@@ -44,9 +45,8 @@ def test_profile_without_database(client, monkeypatch):
     import app.db as db
 
     monkeypatch.setattr(db, "DATABASE_URL", "")
-    response = client.post("/auth/login", json={"email": "a@b.com", "password": "password123"})
-    assert response.status_code == 503
-    assert "administrator" in response.json()["detail"]
+    response = client.get("/profile")
+    assert response.status_code == 401
 
 
 def test_courses_unfiltered(client):
@@ -95,31 +95,55 @@ def test_roadmap_graph(client):
 
 
 @requires_database
-def test_register_login_and_profile(client):
+def test_firebase_token_profile_flow(client, monkeypatch):
+    """A valid Firebase ID token authenticates and can save a profile."""
+    import time
     import uuid
 
+    import jwt
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    import app.auth_security as auth_security
+
+    project_id = "test-project"
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "securetoken@test-project")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    pem = cert.public_bytes(encoding=serialization.Encoding.PEM).decode()
+    monkeypatch.setattr(auth_security, "FIREBASE_PROJECT_ID", project_id)
+    monkeypatch.setattr(auth_security, "_firebase_certs", ({"test-kid": pem}, time.time()))
+
     email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-    register = client.post(
-        "/auth/register",
-        json={"email": email, "password": "password123", "display_name": "Test"},
+    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    token = jwt.encode(
+        {
+            "iss": f"https://securetoken.google.com/{project_id}",
+            "aud": project_id,
+            "sub": "uid-1",
+            "email": email,
+            "iat": now,
+            "exp": now + 3600,
+        },
+        key,
+        algorithm="RS256",
+        headers={"kid": "test-kid"},
     )
-    assert register.status_code == 201
-    token = register.json()["access_token"]
-
-    duplicate = client.post(
-        "/auth/register", json={"email": email, "password": "password123"}
-    )
-    assert duplicate.status_code == 409
-
-    login = client.post(
-        "/auth/login", json={"email": email, "password": "password123"}
-    )
-    assert login.status_code == 200
-    token = login.json()["access_token"]
-
     headers = {"Authorization": f"Bearer {token}"}
+
     assert client.get("/auth/me", headers=headers).json()["email"] == email
-    assert client.get("/profile").status_code == 401
+    assert client.get("/profile", headers=headers).json()["target_role_slug"] is None
 
     saved = client.put(
         "/profile",
@@ -135,3 +159,11 @@ def test_register_login_and_profile(client):
         json={"display_name": "Test", "background": "", "skill_level": "beginner", "target_role_slug": "nope"},
     )
     assert bad_role.status_code == 422
+
+    forged = jwt.encode(
+        {"iss": f"https://securetoken.google.com/{project_id}", "aud": project_id, "sub": "u", "email": email},
+        rsa.generate_private_key(public_exponent=65537, key_size=2048),
+        algorithm="RS256",
+        headers={"kid": "test-kid"},
+    )
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {forged}"}).status_code == 401

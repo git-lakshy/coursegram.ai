@@ -90,12 +90,6 @@ export type LearnerProfile = {
   personalized_roadmap: PersonalizedRoadmap | null
 }
 
-export type AuthResponse = {
-  access_token: string
-  token_type: string
-  email: string
-}
-
 export type MeResponse = {
   email: string
 }

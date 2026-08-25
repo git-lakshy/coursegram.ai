@@ -5,6 +5,7 @@ Profiles are keyed by the authenticated learner's email.
 
 import json
 
+from pydantic import ValidationError
 from sqlalchemy import text
 
 from app.db import get_engine
@@ -35,7 +36,7 @@ def load_profile(user_email: str) -> LearnerProfile:
             onboarding_complete=row[5],
             personalized_roadmap=row[6],
         )
-    except Exception:
+    except ValidationError:
         return LearnerProfile()
 
 

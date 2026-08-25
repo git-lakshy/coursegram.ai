@@ -17,9 +17,6 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     email TEXT PRIMARY KEY,
     display_name TEXT NOT NULL DEFAULT '',
-    password_salt TEXT,
-    password_hash TEXT,
-    firebase_uid TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

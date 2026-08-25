@@ -10,11 +10,10 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 
 from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
-from app.auth_security import firebase_enabled, issue_token, verify_password
+from app.auth_security import firebase_enabled
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app.db import DatabaseNotConfigured
@@ -41,7 +40,7 @@ from app.roadmap_store import (
     load_roadmap_graph,
     load_roadmap_topics,
 )
-from app.user_store import UserNotFound, UserAlreadyExists, create_user, get_or_create_firebase_user, get_user_record
+from app.user_store import get_or_create_firebase_user
 
 app = FastAPI(title="Coursegram API", version="1.0.0")
 
@@ -56,7 +55,6 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -72,8 +70,6 @@ logging.getLogger("app.auth").info(
 # Simple in memory rate limiter for expensive and auth sensitive endpoints.
 # Per client key sliding window; good enough for a single process deployment.
 RATE_LIMITS: dict[str, tuple[int, float]] = {
-    "/auth/register": (10, 60.0),
-    "/auth/login": (10, 60.0),
     "/onboarding/goal": (10, 60.0),
     "/onboarding/quiz": (10, 60.0),
     "/onboarding/plan": (10, 60.0),
@@ -81,6 +77,7 @@ RATE_LIMITS: dict[str, tuple[int, float]] = {
     "/courses": (30, 60.0),
 }
 _rate_buckets: dict[str, list[float]] = {}
+_RATE_BUCKET_TTL = 300.0
 
 
 @app.middleware("http")
@@ -99,16 +96,16 @@ async def rate_limit_middleware(request: Request, call_next):
             )
         bucket.append(now)
         _rate_buckets[key] = bucket
+        # Drop stale buckets so the map cannot grow without bound.
+        if len(_rate_buckets) > 10_000:
+            for stale in [k for k, v in _rate_buckets.items() if not v or now - v[-1] > _RATE_BUCKET_TTL]:
+                del _rate_buckets[stale]
     return await call_next(request)
 
 
 @app.exception_handler(UpstreamError)
-def upstream_error_handler(request, exc: UpstreamError):
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
-
-
 @app.exception_handler(LLMError)
-def llm_error_handler(request, exc: LLMError):
+def upstream_error_handler(request, exc):
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
@@ -180,14 +177,14 @@ def get_roadmap_graph(slug: str) -> dict:
 
 
 @app.get("/profile")
-def get_profile(user_email: str = Depends(get_current_user_email)) -> LearnerProfile:
+def get_profile(user__email: str = Depends(get_current_user_email)) -> LearnerProfile:
     """Return the authenticated learner's profile, defaults when none exists."""
     return load_profile(user_email)
 
 
 @app.put("/profile")
 def update_profile(
-    profile: LearnerProfile, user_email: str = Depends(get_current_user_email)
+    profile: LearnerProfile, user__email: str = Depends(get_current_user_email)
 ) -> LearnerProfile:
     """Persist the authenticated learner's profile after validating the target role."""
     if (
@@ -201,53 +198,8 @@ def update_profile(
     return save_profile(user_email, profile)
 
 
-class RegisterRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=320, description="Learner email address")
-    password: str = Field(min_length=8, max_length=128)
-    display_name: str = Field(default="", max_length=120)
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    email: str
-
-
-@app.post("/auth/register", status_code=201)
-def register(payload: RegisterRequest) -> TokenResponse:
-    """Create a local dev user and return a signed access token."""
-    try:
-        record = create_user(payload.email, payload.password, payload.display_name)
-    except UserAlreadyExists:
-        raise HTTPException(status_code=409, detail="Email already registered")
-    return TokenResponse(
-        access_token=issue_token(record["email"]), email=record["email"]
-    )
-
-
-@app.post("/auth/login")
-def login(payload: LoginRequest) -> TokenResponse:
-    """Verify credentials and return a signed access token."""
-    try:
-        record = get_user_record(payload.email)
-    except UserNotFound:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not verify_password(
-        payload.password, record["password_salt"], record["password_hash"]
-    ):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return TokenResponse(
-        access_token=issue_token(record["email"]), email=record["email"]
-    )
-
-
 @app.get("/auth/me")
-def me(email: str = Depends(get_current_user_email)) -> dict:
+def me(_email: str = Depends(get_current_user_email)) -> dict:
     """Return the authenticated identity, ensuring a user row exists."""
     get_or_create_firebase_user(email)
     return {"email": email}
@@ -255,7 +207,7 @@ def me(email: str = Depends(get_current_user_email)) -> dict:
 
 @app.post("/onboarding/quiz")
 async def onboarding_quiz(
-    payload: QuizRequest, email: str = Depends(get_current_user_email)
+    payload: QuizRequest, _email: str = Depends(get_current_user_email)
 ) -> QuizResponse:
     """Generate a placement quiz for the chosen track via the LLM."""
     return await generate_quiz(payload)
@@ -263,7 +215,7 @@ async def onboarding_quiz(
 
 @app.post("/onboarding/grade")
 def onboarding_grade(
-    payload: GradeRequest, email: str = Depends(get_current_user_email)
+    payload: GradeRequest, _email: str = Depends(get_current_user_email)
 ) -> GradeResponse:
     """Grade a placement quiz locally and recommend a skill level."""
     return grade_quiz(payload)
@@ -271,11 +223,11 @@ def onboarding_grade(
 
 @app.post("/assistant/chat")
 async def assistant_chat(
-    payload: ChatRequest, email: str = Depends(get_current_user_email)
+    payload: ChatRequest, _email: str = Depends(get_current_user_email)
 ) -> ChatResponse:
     """Reply to a learner question with profile and track context."""
-    profile = load_profile(email)
-    return await chat(email, profile, payload)
+    profile = load_profile(_email)
+    return await chat(_email, profile, payload)
 
 @app.get("/roadmaps/{slug}/categories")
 async def get_roadmap_categories(slug: str) -> dict:
@@ -288,7 +240,7 @@ async def get_roadmap_categories(slug: str) -> dict:
 
 @app.post("/onboarding/goal")
 async def onboarding_goal(
-    payload: GoalRequest, email: str = Depends(get_current_user_email)
+    payload: GoalRequest, _email: str = Depends(get_current_user_email)
 ) -> GoalAnalysisResponse:
     """Parse a free text learning goal into a track and skill areas."""
     return await analyze_goal(payload)
@@ -296,7 +248,7 @@ async def onboarding_goal(
 
 @app.post("/onboarding/plan")
 async def onboarding_plan(
-    payload: PlanRequest, email: str = Depends(get_current_user_email)
+    payload: PlanRequest, _email: str = Depends(get_current_user_email)
 ) -> PlanResponse:
     """Generate a personalized roadmap from the track reference data."""
     return await generate_plan(payload)

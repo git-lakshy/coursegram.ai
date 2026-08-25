@@ -61,13 +61,13 @@ def _make_token(key, **claims):
 
 def test_verify_firebase_token_returns_email(firebase_env):
     token = _make_token(firebase_env)
-    assert auth_security.verify_firebase_token(token) == "learner@example.com"
+    assert auth_security.verify_token(token) == "learner@example.com"
 
 
 def test_verify_firebase_token_rejects_wrong_audience(firebase_env):
     token = _make_token(firebase_env, aud="other-project")
     with pytest.raises(auth_security.InvalidToken):
-        auth_security.verify_firebase_token(token)
+        auth_security.verify_token(token)
 
 
 def test_verify_firebase_token_rejects_expired(firebase_env):
@@ -76,7 +76,7 @@ def test_verify_firebase_token_rejects_expired(firebase_env):
         exp=int(datetime.datetime.now(datetime.timezone.utc).timestamp()) - 10,
     )
     with pytest.raises(auth_security.InvalidToken):
-        auth_security.verify_firebase_token(token)
+        auth_security.verify_token(token)
 
 
 def test_verify_firebase_token_rejects_unknown_kid(firebase_env, monkeypatch):
@@ -86,4 +86,4 @@ def test_verify_firebase_token_rejects_unknown_kid(firebase_env, monkeypatch):
         auth_security, "_firebase_certs", ({"other-kid": json.dumps(certs)}, ts)
     )
     with pytest.raises(auth_security.InvalidToken):
-        auth_security.verify_firebase_token(token)
+        auth_security.verify_token(token)

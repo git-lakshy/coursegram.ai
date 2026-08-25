@@ -16,8 +16,6 @@ services:
         value: google/diffusiongemma-26b-a4b-it
       - key: DATABASE_URL
         sync: false
-      - key: SECRET_KEY
-        generateValue: true
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: ALLOWED_ORIGINS
