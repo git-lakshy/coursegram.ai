@@ -32,7 +32,6 @@ from app.onboarding import (
     generate_plan,
     generate_quiz,
     grade_quiz,
-    personalize,
 )
 from app.profile_store import load_profile, save_profile
 from app.roadmap_store import (

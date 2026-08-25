@@ -204,16 +204,6 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
     )
 
 
-def personalize(payload: PlanResponse) -> dict:
-    """Convert a generated plan into the stored profile shape."""
-    return {
-        "slug": payload.slug,
-        "summary": payload.summary,
-        "phases": [phase.model_dump() for phase in payload.phases],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-
 async def generate_quiz(payload: QuizRequest) -> QuizResponse:
     """Ask the LLM for placement questions on the track's topics."""
     try:

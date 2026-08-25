@@ -96,6 +96,7 @@ export default function Home() {
             </>
           )}
         </div>
+        </div>
       </header>
 
       <section className="relative overflow-hidden">

@@ -4,7 +4,9 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
 } from "firebase/auth"
@@ -26,6 +28,7 @@ type AuthState = {
   profile: LearnerProfile | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
   register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => void
   setProfile: (profile: LearnerProfile) => void
@@ -90,6 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   )
 
+  const loginWithGoogle = useCallback(async () => {
+    if (!firebaseEnabled || !firebaseAuth) {
+      throw new Error("Google sign in is not configured")
+    }
+    const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
+    await applySession(await credential.user.getIdToken())
+  }, [applySession])
+
   const register = useCallback(
     async (userEmail: string, password: string, displayName: string) => {
       if (firebaseEnabled && firebaseAuth) {
@@ -122,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ token, email, profile, isLoading, login, register, logout, setProfile }),
+    () => ({ token, email, profile, isLoading, login, loginWithGoogle, register, logout, setProfile }),
     [token, email, profile, isLoading, login, register, logout, setProfile],
   )
 
@@ -136,3 +147,4 @@ export function useAuth(): AuthState {
   }
   return context
 }
+
