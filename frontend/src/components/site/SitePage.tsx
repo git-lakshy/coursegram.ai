@@ -98,6 +98,7 @@ const FOOTER_COLUMNS = [
       { label: "About Us", href: "#" },
       { label: "Blog", href: "#" },
       { label: "Careers", href: "#" },
+      { label: "Press Kit", href: "#" },
       { label: "Contact", href: "#" },
     ],
   },
@@ -107,6 +108,7 @@ const FOOTER_COLUMNS = [
       { label: "Help Center", href: "#" },
       { label: "Guides", href: "#" },
       { label: "Community", href: "#" },
+      { label: "API Docs", href: "#" },
       { label: "For Institutions", to: "/institutions" },
     ],
   },
@@ -148,14 +150,18 @@ export function SiteFooter() {
             }}
             aria-hidden="true"
           />
-          <div className="relative z-10 flex flex-col items-start justify-between gap-6 p-8 md:flex-row md:items-center md:p-10">
-            <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-ink-primary">
-              Your future is built{" "}
-              <span className="text-accent-700">one skill at a time.</span>
-            </h2>
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-sm text-ink-secondary">
-                Start your personalized learning journey today. It&apos;s free.
+          <div className="relative z-10 grid gap-8 p-8 md:grid-cols-2 md:p-12">
+            <div className="md:pr-10">
+              <h2 className="max-w-md font-display text-3xl font-bold leading-tight tracking-tight text-ink-primary">
+                Your future is built{" "}
+                <span className="text-accent-700">one skill at a time.</span>
+              </h2>
+            </div>
+            <div className="flex flex-col items-start gap-3 md:border-l md:border-border/70 md:pl-10">
+              <p className="text-sm leading-relaxed text-ink-secondary">
+                Start your personalized learning
+                <br />
+                journey today. It&apos;s free.
               </p>
               <Link
                 to="/login"
@@ -230,7 +236,7 @@ export function SiteFooter() {
         </div>
         <div className="border-t border-border/60">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-ink-muted">
-            <span>© {year} Coursegram.ai</span>
+            <span>&copy; {year} Coursegram.ai</span>
             <span>Learn smarter, achieve faster.</span>
           </div>
         </div>
@@ -238,3 +244,4 @@ export function SiteFooter() {
     </footer>
   )
 }
+

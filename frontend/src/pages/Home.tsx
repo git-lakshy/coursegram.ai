@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/hooks/useAuth"
+import { SiteFooter } from "@/components/site/SitePage"
 import {
   Accordion,
   AccordionContent,
@@ -44,7 +45,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
+      <header
+        className="sticky top-0 z-20 border-b border-border/50"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.45) 100%)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-primary text-surface">
             <GraduationCap className="h-4 w-4" />
@@ -220,6 +229,8 @@ export default function Home() {
           No credit card required
         </div>
       </section>
+
+      <SiteFooter />
     </div>
   )
 }
