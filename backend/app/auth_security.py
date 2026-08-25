@@ -11,6 +11,9 @@ import json
 import os
 import secrets
 import time
+import urllib.request
+
+import jwt
 
 SECRET_KEY_PATH = os.path.join(
     os.path.dirname(__file__), "data", "runtime", "dev_secret.key"
@@ -18,7 +21,18 @@ SECRET_KEY_PATH = os.path.join(
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
 PBKDF2_ITERATIONS = 200_000
 
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
+FIREBASE_CERTS_URL = (
+    "https://www.googleapis.com/robot/v1/metadata/x509/"
+    "securetoken@system.gserviceaccount.com"
+)
+
 _secret_key: bytes | None = None
+_firebase_certs: tuple[dict, float] | None = None
+
+
+def firebase_enabled() -> bool:
+    return FIREBASE_PROJECT_ID != ""
 
 
 def _get_secret_key() -> bytes:
@@ -69,12 +83,55 @@ class InvalidToken(Exception):
     pass
 
 
+def _get_firebase_certs() -> dict:
+    """Fetch and cache Google's public certificates for one hour."""
+    global _firebase_certs
+    now = time.time()
+    if _firebase_certs is not None and now - _firebase_certs[1] < 3600:
+        return _firebase_certs[0]
+    with urllib.request.urlopen(FIREBASE_CERTS_URL, timeout=15) as response:
+        certs = json.load(response)
+    _firebase_certs = (certs, now)
+    return certs
+
+
+def verify_firebase_token(token: str) -> str:
+    """Verify a Firebase ID token and return the user's email."""
+    if not firebase_enabled():
+        raise InvalidToken("Firebase is not configured")
+    try:
+        header = jwt.get_unverified_header(token)
+        certs = _get_firebase_certs()
+        payload = jwt.decode(
+            token,
+            certs[header["kid"]],
+            algorithms=["RS256"],
+            audience=FIREBASE_PROJECT_ID,
+            issuer=f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}",
+            options={"verify_exp": True},
+        )
+    except jwt.PyJWTError as error:
+        raise InvalidToken(f"Invalid Firebase token: {error}") from error
+    except OSError as error:
+        raise InvalidToken("Could not fetch token signing keys") from error
+    email = payload.get("email") or ""
+    if not email:
+        raise InvalidToken("Firebase token has no email claim")
+    return str(email).lower()
+
+
 def verify_token(token: str) -> str:
     """Validate a token and return the email it was issued to.
 
-    This is the seam where production swaps to Firebase ID token
-    verification; callers stay unchanged.
+    Firebase ID tokens are tried first when Firebase is configured; local
+    signed tokens remain the development path. Callers stay unchanged.
     """
+    if firebase_enabled():
+        try:
+            return verify_firebase_token(token)
+        except InvalidToken:
+            if token.startswith(("ey", "e30")):
+                raise
     try:
         body_hex, signature = token.rsplit(".", 1)
         body = bytes.fromhex(body_hex)

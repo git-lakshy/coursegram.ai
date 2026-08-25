@@ -3,6 +3,13 @@ import type { ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth"
+
+import {
   getMe,
   getProfile,
   login as apiLogin,
@@ -10,6 +17,7 @@ import {
   register as apiRegister,
   storeToken,
 } from "@/lib/api"
+import { firebaseAuth, firebaseEnabled } from "@/lib/firebase"
 import type { LearnerProfile } from "@/types"
 
 type AuthState = {
@@ -71,6 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (userEmail: string, password: string) => {
+      if (firebaseEnabled && firebaseAuth) {
+        const credential = await signInWithEmailAndPassword(firebaseAuth, userEmail, password)
+        await applySession(await credential.user.getIdToken())
+        return
+      }
       const response = await apiLogin(userEmail, password)
       await applySession(response.access_token)
     },
@@ -79,6 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (userEmail: string, password: string, displayName: string) => {
+      if (firebaseEnabled && firebaseAuth) {
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, userEmail, password)
+        if (displayName.trim() !== "") {
+          await updateProfile(credential.user, { displayName: displayName.trim() })
+        }
+        await applySession(await credential.user.getIdToken())
+        return
+      }
       const response = await apiRegister(userEmail, password, displayName)
       await applySession(response.access_token)
     },
@@ -86,6 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(() => {
+    if (firebaseEnabled && firebaseAuth) {
+      void signOut(firebaseAuth)
+    }
     storeToken(null)
     setToken(null)
     setEmail(null)

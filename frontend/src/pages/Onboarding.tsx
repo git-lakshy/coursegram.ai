@@ -48,8 +48,9 @@ export function Onboarding() {
   const goalMessage = extraDetails.trim() === "" ? goalText.trim() : `${goalText.trim()} ${extraDetails.trim()}`
 
   function errorMessage(err: unknown): string {
-    const status = err instanceof ApiError ? err.status : 0
-    if (status === 503) return "The AI features need an LLM key on the server."
+    if (err instanceof ApiError && err.message) {
+      return err.message
+    }
     return "Could not reach the AI service. Try again."
   }
 

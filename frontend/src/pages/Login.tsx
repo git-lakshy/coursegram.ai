@@ -40,13 +40,17 @@ export function Login() {
       navigate(from, { replace: true })
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0
-      setError(
-        status === 401
-          ? "Invalid email or password."
-          : status === 409
-            ? "That email is already registered."
-            : "Something went wrong. Try again.",
-      )
+      if (status === 503) {
+        setError(err instanceof ApiError ? err.message : "Service unavailable. Try again later.")
+      } else {
+        setError(
+          status === 401
+            ? "Invalid email or password."
+            : status === 409
+              ? "That email is already registered."
+              : "Something went wrong. Try again.",
+        )
+      }
     } finally {
       setIsBusy(false)
     }
