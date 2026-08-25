@@ -9,6 +9,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth_security import InvalidToken, verify_token
 
+import logging
+
+logger = logging.getLogger("app.auth")
+
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -21,4 +25,5 @@ def get_current_user_email(
     try:
         return verify_token(credentials.credentials)
     except InvalidToken as error:
+        logger.warning("Token rejected: %s", error)
         raise HTTPException(status_code=401, detail=str(error))
