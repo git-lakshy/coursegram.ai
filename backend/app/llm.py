@@ -146,7 +146,9 @@ async def _complete(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
-    if json_mode:
+    if json_mode and provider_name != "nvidia":
+        # NVIDIA NIM rejects response_format with a 400; prompts already
+        # demand raw JSON, so skip it there and save a roundtrip.
         body["response_format"] = {"type": "json_object"}
     if provider_name == "nvidia":
         # Thinking mode burns the token budget on hidden reasoning; the
