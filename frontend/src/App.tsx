@@ -14,6 +14,12 @@ const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default:
 const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })))
 const Home = lazy(() => import("@/pages/Home"))
 const NotFound = lazy(() => import("@/pages/NotFound"))
+const Features = lazy(() => import("@/pages/site/Features"))
+const HowItWorks = lazy(() => import("@/pages/site/HowItWorks"))
+const RoadmapPage = lazy(() => import("@/pages/site/RoadmapPage"))
+const Pricing = lazy(() => import("@/pages/site/Pricing"))
+const Institutions = lazy(() => import("@/pages/site/Institutions"))
+const Legal = lazy(() => import("@/pages/site/Legal"))
 const Onboarding = lazy(() => import("@/pages/Onboarding").then((m) => ({ default: m.Onboarding })))
 const Profile = lazy(() => import("@/pages/Profile").then((m) => ({ default: m.Profile })))
 const Projects = lazy(() => import("@/pages/Projects").then((m) => ({ default: m.Projects })))
@@ -91,6 +97,12 @@ export default function App() {
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/features" element={<Features />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/roadmap" element={<RoadmapPage />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/institutions" element={<Institutions />} />
+          <Route path="/legal" element={<Legal />} />
           <Route
             path="/login"
             element={

@@ -2,35 +2,38 @@ import { Link } from "react-router-dom"
 import {
   ArrowRight,
   GraduationCap,
-  Play,
   Route,
   ChartNoAxesCombined,
   Zap,
   LayoutDashboard,
+  Check,
+  Play,
 } from "lucide-react"
 
 import { useAuth } from "@/hooks/useAuth"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
-const FEATURES = [
+const FAQS = [
   {
-    icon: Route,
-    title: "Personalized Roadmaps",
-    detail: "AI creates a learning path just for you.",
+    q: "How does Coursegram build my roadmap?",
+    a: "Describe your goal in plain language. The AI matches it to one of 90 plus career tracks, checks your current proficiency with a quick analysis, and generates a phased roadmap with milestones that skips what you already know.",
   },
   {
-    icon: ChartNoAxesCombined,
-    title: "Skill Gap Analysis",
-    detail: "Know what you know and what you need to learn.",
+    q: "Is Coursegram free?",
+    a: "Yes. The personalized roadmap, skill graph, AI assistant, and progress tracking are free while the product is in open beta.",
   },
   {
-    icon: GraduationCap,
-    title: "Curated Resources",
-    detail: "Top courses, projects and assessments in one place.",
+    q: "What can I learn?",
+    a: "Any track in the catalog: full stack, devops, data science, machine learning, backend, frontend, android, and many more, each with a structured skill graph.",
   },
   {
-    icon: Zap,
-    title: "Learn. Practice. Grow.",
-    detail: "Hands-on projects and real assessments to level up.",
+    q: "Do I need a credit card?",
+    a: "No. Create an account with your email and start building your learning path immediately.",
   },
 ]
 
@@ -40,70 +43,74 @@ export default function Home() {
   const appLabel = token === null ? "Get Started Free" : "Open Dashboard"
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url(/coursegram-bg.png)" }}
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(90deg, rgba(250,250,250,0.94) 0%, rgba(250,250,250,0.82) 34%, rgba(250,250,250,0.35) 60%, rgba(250,250,250,0) 80%)",
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-primary text-surface">
-              <GraduationCap className="h-4 w-4" />
-            </span>
-            <span className="text-base font-semibold tracking-tight text-ink-primary">
-              Coursegram.ai
-            </span>
-          </Link>
-          <nav className="hidden items-center gap-7 text-sm text-ink-secondary lg:flex">
-            <a href="#features" className="transition-colors hover:text-ink-primary">Features</a>
-            <a href="#how-it-works" className="transition-colors hover:text-ink-primary">How it Works</a>
-            <a href="#roadmap" className="transition-colors hover:text-ink-primary">Roadmap</a>
-            <a href="#pricing" className="transition-colors hover:text-ink-primary">Pricing</a>
-            <a href="#institutions" className="transition-colors hover:text-ink-primary">For Institutions</a>
-          </nav>
-          <div className="flex items-center gap-3">
-            {isLoading ? null : token !== null ? (
+    <div className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
+        <Link to="/" className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-primary text-surface">
+            <GraduationCap className="h-4 w-4" />
+          </span>
+          <span className="font-display text-base font-semibold tracking-tight text-ink-primary">
+            Coursegram.ai
+          </span>
+        </Link>
+        <nav className="hidden items-center gap-7 text-sm font-medium text-ink-primary lg:flex">
+          <Link to="/features" className="transition-colors hover:text-accent-700">Features</Link>
+          <Link to="/how-it-works" className="transition-colors hover:text-accent-700">How it Works</Link>
+          <Link to="/roadmap" className="transition-colors hover:text-accent-700">Roadmap</Link>
+          <Link to="/pricing" className="transition-colors hover:text-accent-700">Pricing</Link>
+          <Link to="/institutions" className="transition-colors hover:text-accent-700">For Institutions</Link>
+        </nav>
+        <div className="flex items-center gap-3">
+          {isLoading ? null : token !== null ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-700 px-4 py-2 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </Link>
+          ) : (
+            <>
               <Link
-                to="/dashboard"
+                to="/login"
+                className="text-sm font-semibold text-ink-primary transition-colors hover:text-accent-700"
+              >
+                Log in
+              </Link>
+              <Link
+                to="/login"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-accent-700 px-4 py-2 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
               >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
+                Get Started Free
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="text-sm font-medium text-ink-primary transition-colors hover:text-ink-secondary"
-                >
-                  Log in
-                </Link>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent-700 px-4 py-2 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
-                >
-                  Get Started Free
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </>
-            )}
-          </div>
-        </header>
+            </>
+          )}
+        </div>
+      </header>
 
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-6 py-12">
+      <section className="relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover"
+          style={{ backgroundImage: "url(/coursegram-bg.png)", backgroundPosition: "72% center", transform: "scale(1.12)" }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(250,250,250,0.96) 0%, rgba(250,250,250,0.85) 32%, rgba(250,250,250,0.3) 58%, rgba(250,250,250,0) 78%)",
+          }}
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-40"
+          style={{ background: "linear-gradient(180deg, transparent 0%, #fafafa 100%)" }}
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto w-full max-w-7xl px-6 pb-28 pt-16 md:pt-24">
           <div className="max-w-xl">
-            <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight text-ink-primary md:text-[4.25rem]">
+            <h1 className="font-display text-5xl font-bold leading-[1.04] tracking-tight text-ink-primary md:text-6xl">
               Learn Smarter.
               <br />
               <span className="text-accent-700">Achieve Faster.</span>
@@ -120,13 +127,13 @@ export default function Home() {
                 {appLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="#how-it-works"
+              <Link
+                to="/how-it-works"
                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface/90 px-5 py-3 text-sm font-semibold text-ink-primary backdrop-blur transition-colors hover:bg-surface"
               >
                 See How It Works
                 <Play className="h-4 w-4" />
-              </a>
+              </Link>
             </div>
             <div className="mt-9 flex items-center gap-3">
               <div className="flex -space-x-2">
@@ -147,80 +154,72 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </main>
+        </div>
+      </section>
 
-        <section id="features" className="mx-auto w-full max-w-7xl px-6 pb-10">
-          <div className="grid gap-6 rounded-2xl border border-border bg-surface/85 p-7 shadow-sm backdrop-blur md:grid-cols-4 md:gap-5">
-            {FEATURES.map((feature) => (
-              <div key={feature.title} className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
-                  <feature.icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-ink-primary">{feature.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-ink-secondary">{feature.detail}</p>
-                </div>
+      <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-4">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-accent-700">
+            Dare to do better
+          </p>
+          <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink-primary">
+            An unclear goal becomes a clear path
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-ink-secondary">
+            Most learners juggle roadmap sites, course marketplaces, and their own
+            notes. Coursegram replaces all of it with one loop: describe where you
+            want to go, see exactly what you are missing, and follow a roadmap
+            that adapts every time you learn something new.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              icon: Route,
+              title: "Describe, do not search",
+              detail: "Say what you want to become. The AI picks the right track and maps every skill it requires.",
+            },
+            {
+              icon: ChartNoAxesCombined,
+              title: "Know your gaps",
+              detail: "A quick analysis and skill graph show precisely which topics stand between you and your goal.",
+            },
+            {
+              icon: Zap,
+              title: "Move with milestones",
+              detail: "Every phase ends with something you can build, and the path regenerates as you progress.",
+            },
+          ].map((item) => (
+            <div key={item.title} className="rounded-xl border border-border bg-surface p-5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+                <item.icon className="h-4 w-4" />
               </div>
-            ))}
-          </div>
-        </section>
+              <p className="font-display mt-3 text-sm font-semibold text-ink-primary">{item.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <section id="how-it-works" className="mx-auto w-full max-w-7xl px-6 pb-14">
-          <h2 className="text-2xl font-semibold tracking-tight text-ink-primary">How it works</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {[
-              {
-                step: "1",
-                title: "Describe your goal",
-                detail: "Tell Coursegram what you want to become, in your own words, with your timeline and what you already know.",
-              },
-              {
-                step: "2",
-                title: "Get analyzed and quizzed",
-                detail: "The AI identifies your skill areas, checks your proficiency, and maps exactly what you are missing.",
-              },
-              {
-                step: "3",
-                title: "Follow your path",
-                detail: "A personalized roadmap with milestones, courses and assessments that adapts as you progress.",
-              },
-            ].map((item) => (
-              <div key={item.step} className="rounded-xl border border-border bg-surface/90 p-5 backdrop-blur">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-50 text-xs font-semibold text-accent-700">
-                  {item.step}
-                </span>
-                <p className="mt-3 text-sm font-semibold text-ink-primary">{item.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{item.detail}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="pricing" className="mx-auto w-full max-w-7xl px-6 pb-16">
-          <div className="rounded-2xl border border-border bg-surface/90 p-8 text-center backdrop-blur">
-            <h2 className="text-lg font-semibold tracking-tight text-ink-primary">
-              Turn an unclear goal into a clear path forward
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-ink-secondary">
-              Start free and get your personalized learning roadmap in minutes.
-            </p>
-            <Link
-              to={appHref}
-              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-accent-700 px-5 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
-            >
-              {appLabel}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </section>
-
-        <footer className="border-t border-border/60">
-          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-ink-muted">
-            <span>Coursegram.ai</span>
-            <span>Learn smarter, achieve faster.</span>
-          </div>
-        </footer>
-      </div>
+      <section className="mx-auto w-full max-w-3xl px-6 pb-20">
+        <h2 className="font-display text-center text-2xl font-bold tracking-tight text-ink-primary">
+          Frequently asked questions
+        </h2>
+        <Accordion className="mt-6">
+          {FAQS.map((faq, index) => (
+            <AccordionItem key={faq.q} defaultOpen={index === 0}>
+              <AccordionTrigger>{faq.q}</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm leading-relaxed text-ink-secondary">{faq.a}</p>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-muted">
+          <Check className="h-3.5 w-3.5 text-accent-600" />
+          No credit card required
+        </div>
+      </section>
     </div>
   )
 }

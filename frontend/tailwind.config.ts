@@ -5,6 +5,9 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Sora"', '"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
         background: "#FAFAFA",
         surface: "#FFFFFF",
