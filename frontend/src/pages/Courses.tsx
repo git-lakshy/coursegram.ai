@@ -6,11 +6,14 @@ import { EmptyState } from "@/components/common/EmptyState"
 import { ErrorState } from "@/components/common/ErrorState"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/hooks/useAuth"
 import { useCourses } from "@/hooks/useCourses"
 
 export function Courses() {
-  const [topic, setTopic] = useState("python")
-  const [draftTopic, setDraftTopic] = useState("python")
+  const { profile } = useAuth()
+  const defaultTopic = profile?.target_role_slug ?? ""
+  const [topic, setTopic] = useState(defaultTopic)
+  const [draftTopic, setDraftTopic] = useState(defaultTopic)
   const coursesQuery = useCourses(topic, 20)
 
   return (
@@ -34,7 +37,9 @@ export function Courses() {
         />
       </form>
 
-      {coursesQuery.isLoading ? (
+      {topic.trim() === "" ? (
+        <p className="text-sm text-ink-muted">Start typing to search courses</p>
+      ) : coursesQuery.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4, 5].map((key) => (
             <Skeleton key={key} className="h-28 w-full" />

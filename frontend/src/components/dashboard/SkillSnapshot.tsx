@@ -6,16 +6,32 @@ import { EmptyState } from "@/components/common/EmptyState"
 import { SectionHeader } from "@/components/common/SectionHeader"
 import { Skeleton } from "@/components/ui/skeleton"
 import { groupTopicsIntoSkillCategories } from "@/lib/skillCategories"
+import { useRoadmapCategories } from "@/hooks/useRoadmaps"
+import type { SkillCategory } from "@/types"
 import { BrainCircuit } from "lucide-react"
 
 type SkillSnapshotProps = {
   allTopics: string[]
   completedTopics: string[]
   isLoading: boolean
+  slug?: string
 }
 
-export function SkillSnapshot({ allTopics, completedTopics, isLoading }: SkillSnapshotProps) {
-  const categories = groupTopicsIntoSkillCategories(allTopics)
+function categoriesFromResponse(
+  data: { slug: string; categories: { name: string; topics: string[] }[] } | undefined,
+): SkillCategory[] | undefined {
+  if (!data || data.categories.length === 0) return undefined
+  return data.categories.map((category) => ({
+    id: category.name.toLowerCase(),
+    label: category.name,
+    topics: category.topics,
+  }))
+}
+
+export function SkillSnapshot({ allTopics, completedTopics, isLoading, slug }: SkillSnapshotProps) {
+  const categoriesQuery = useRoadmapCategories(slug)
+  const fallback = groupTopicsIntoSkillCategories(allTopics)
+  const categories = categoriesFromResponse(categoriesQuery.data) ?? fallback
   const chartData = categories.map((category) => {
     const completedCount = category.topics.filter((topic) => completedTopics.includes(topic)).length
     const percent = category.topics.length > 0 ? Math.round((completedCount / category.topics.length) * 100) : 0

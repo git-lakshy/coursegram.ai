@@ -32,6 +32,7 @@ const DEFAULT_PROFILE: LearnerProfile = {
   target_role_slug: null,
   known_topics: [],
   onboarding_complete: false,
+  personalized_roadmap: null,
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

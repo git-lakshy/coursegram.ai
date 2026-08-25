@@ -58,6 +58,27 @@ export type RoadmapGraphResponse = {
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced"
 
+export type GoalAnalysisResponse = {
+  track_slug: string
+  summary: string
+  areas: { name: string; topics: string[] }[]
+}
+
+export type PlanPhase = { name: string; milestone: string; topics: string[] }
+
+export type PlanResponse = {
+  slug: string
+  summary: string
+  phases: PlanPhase[]
+}
+
+export type PersonalizedRoadmap = {
+  slug: string
+  summary: string
+  phases: PlanPhase[]
+  created_at: string
+}
+
 export type LearnerProfile = {
   display_name: string
   background: string
@@ -65,6 +86,7 @@ export type LearnerProfile = {
   target_role_slug: string | null
   known_topics: string[]
   onboarding_complete: boolean
+  personalized_roadmap: PersonalizedRoadmap | null
 }
 
 export type AuthResponse = {
@@ -105,3 +127,9 @@ export type ChatMessage = {
 export type ChatResponse = {
   reply: string
 }
+
+export type RoadmapCategoriesResponse = {
+  slug: string
+  categories: { name: string; topics: string[] }[]
+}
+

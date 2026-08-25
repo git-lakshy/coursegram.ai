@@ -1,43 +1,80 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Flag, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { useAuth } from "@/hooks/useAuth"
-import { ApiError, generateQuiz, gradeQuiz, getRoadmapGraph, getRoadmapSlugs, updateProfile } from "@/lib/api"
+import {
+  ApiError,
+  analyzeGoal,
+  generatePlan,
+  generateQuiz,
+  getRoadmapSlugs,
+  gradeQuiz,
+  updateProfile,
+} from "@/lib/api"
 import { cn } from "@/lib/utils"
-import type { QuizQuestion, SkillLevel } from "@/types"
+import type { GoalAnalysisResponse, PlanPhase, QuizQuestion, SkillLevel } from "@/types"
 
-const STEPS = ["Track", "Known skills", "Level", "Quiz", "Done"] as const
-const SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"]
+const STEPS = ["Goal", "Areas", "Quiz", "Plan"] as const
+const AREA_LEVELS = ["beginner", "intermediate", "expert"] as const
 
 export function Onboarding() {
   const { token, email, profile, setProfile } = useAuth()
   const navigate = useNavigate()
 
   const [step, setStep] = useState(0)
+  const [goalText, setGoalText] = useState("")
+  const [extraDetails, setExtraDetails] = useState("")
+  const [analysis, setAnalysis] = useState<GoalAnalysisResponse | null>(null)
   const [slug, setSlug] = useState<string>("")
+  const [areaLevels, setAreaLevels] = useState<Record<string, string>>({})
   const [knownTopics, setKnownTopics] = useState<string[]>([])
-  const [skillLevel, setSkillLevel] = useState<SkillLevel>("beginner")
+  const [topicsOpen, setTopicsOpen] = useState(false)
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [answers, setAnswers] = useState<number[]>([])
   const [result, setResult] = useState<{ score: number; total: number; level: SkillLevel; summary: string } | null>(null)
+  const [plan, setPlan] = useState<{ slug: string; summary: string; phases: PlanPhase[] } | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const slugsQuery = useQuery({ queryKey: ["roadmap-slugs"], queryFn: getRoadmapSlugs })
-  const graphQuery = useQuery({
-    queryKey: ["roadmap-graph", slug],
-    queryFn: () => getRoadmapGraph(slug),
-    enabled: slug !== "",
-  })
-  const topics = useMemo(() => graphQuery.data?.nodes.map((node) => node.name) ?? [], [graphQuery.data])
 
-  const effectiveSlug = slug || profile?.target_role_slug || ""
+  const goalMessage = extraDetails.trim() === "" ? goalText.trim() : `${goalText.trim()} ${extraDetails.trim()}`
+
+  function errorMessage(err: unknown): string {
+    const status = err instanceof ApiError ? err.status : 0
+    if (status === 503) return "The AI features need an LLM key on the server."
+    return "Could not reach the AI service. Try again."
+  }
+
+  async function submitGoal() {
+    if (token === null || goalText.trim() === "") return
+    setIsBusy(true)
+    setError(null)
+    try {
+      const analyzed = await analyzeGoal(token, goalMessage)
+      setAnalysis(analyzed)
+      setSlug(analyzed.track_slug)
+      setAreaLevels(
+        Object.fromEntries(analyzed.areas.map((area) => [area.name, "beginner"])),
+      )
+      setStep(1)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  function toggleAreaLevel(areaName: string, level: string) {
+    setAreaLevels((previous) => ({ ...previous, [areaName]: level }))
+  }
 
   function toggleTopic(topic: string) {
     setKnownTopics((previous) =>
@@ -45,22 +82,24 @@ export function Onboarding() {
     )
   }
 
+  const lowestLevel = useMemo<SkillLevel>(() => {
+    const levels = analysis?.areas.map((area) => areaLevels[area.name] ?? "beginner") ?? []
+    if (levels.includes("beginner")) return "beginner"
+    if (levels.includes("intermediate")) return "intermediate"
+    return "advanced"
+  }, [analysis, areaLevels])
+
   async function startQuiz() {
-    if (token === null) return
+    if (token === null || slug === "") return
     setIsBusy(true)
     setError(null)
     try {
-      const quiz = await generateQuiz(token, effectiveSlug, knownTopics, skillLevel)
+      const quiz = await generateQuiz(token, slug, knownTopics, lowestLevel)
       setQuestions(quiz.questions)
       setAnswers(quiz.questions.map(() => -1))
-      setStep(3)
+      setStep(2)
     } catch (err) {
-      const status = err instanceof ApiError ? err.status : 0
-      setError(
-        status === 503
-          ? "The AI quiz needs an LLM key on the server. Skipping the quiz, you can set your level manually in Profile."
-          : "Could not generate the quiz. Try again.",
-      )
+      setError(errorMessage(err))
     } finally {
       setIsBusy(false)
     }
@@ -69,32 +108,40 @@ export function Onboarding() {
   async function finishQuiz() {
     if (token === null) return
     setIsBusy(true)
+    setError(null)
     try {
       const graded = await gradeQuiz(token, questions, answers)
       setResult({ score: graded.score, total: graded.total, level: graded.recommended_level, summary: graded.summary })
-      setStep(4)
-    } catch {
-      setError("Could not grade the quiz. Try again.")
+      const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
+      setPlan(built)
+      setStep(3)
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setIsBusy(false)
     }
   }
 
-  async function saveAndFinish() {
-    if (token === null) return
+  async function startLearning() {
+    if (token === null || plan === null) return
     setIsBusy(true)
     try {
-      const finalLevel = result?.level ?? skillLevel
       const saved = await updateProfile(token, {
         display_name: profile?.display_name || email?.split("@")[0] || "",
-        background: profile?.background || "",
-        skill_level: finalLevel,
-        target_role_slug: effectiveSlug,
+        background: goalText.trim(),
+        skill_level: result?.level ?? lowestLevel,
+        target_role_slug: plan.slug,
         known_topics: knownTopics,
         onboarding_complete: true,
+        personalized_roadmap: {
+          slug: plan.slug,
+          summary: plan.summary,
+          phases: plan.phases,
+          created_at: new Date().toISOString(),
+        },
       })
       setProfile(saved)
-      toast.success("You are all set")
+      toast.success("Your roadmap is ready")
       navigate("/roadmap", { replace: true })
     } catch {
       toast.error("Could not save your profile. Try again.")
@@ -103,7 +150,7 @@ export function Onboarding() {
     }
   }
 
-  const canNext = step === 0 ? effectiveSlug !== "" : true
+  const canContinue = step === 0 ? goalText.trim() !== "" : true
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -128,40 +175,76 @@ export function Onboarding() {
         {step === 0 ? (
           <div>
             <h2 className="text-sm font-semibold text-ink-primary">What do you want to learn?</h2>
-            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">Pick the track you are aiming for.</p>
+            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">
+              Describe your goal in your own words and we will build a plan around it.
+            </p>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink-primary placeholder:text-ink-muted focus:border-accent-600 focus:outline-none focus:ring-1 focus:ring-accent-600"
+              placeholder="I want to become a full stack developer"
+              value={goalText}
+              onChange={(event) => setGoalText(event.target.value)}
+            />
+            <Input
+              className="mt-3"
+              placeholder="Any extra details? Timeline, prior knowledge, constraints (optional)"
+              value={extraDetails}
+              onChange={(event) => setExtraDetails(event.target.value)}
+            />
+          </div>
+        ) : null}
+
+        {step === 1 && analysis !== null ? (
+          <div>
+            <h2 className="text-sm font-semibold text-ink-primary">Here is what we found</h2>
+            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">{analysis.summary}</p>
             <Select
               className="w-full"
-              value={effectiveSlug}
-              onChange={(event) => {
-                setSlug(event.target.value)
-                setKnownTopics([])
-              }}
+              value={slug}
+              onChange={(event) => setSlug(event.target.value)}
             >
-              <option value="">Choose a track</option>
+              {(slugsQuery.data?.slugs ?? []).includes(slug) ? null : <option value={slug}>{slug}</option>}
               {(slugsQuery.data?.slugs ?? []).map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
               ))}
             </Select>
-          </div>
-        ) : null}
+            <div className="mt-4 space-y-2">
+              {analysis.areas.map((area) => (
+                <div key={area.name} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                  <span className="text-sm font-medium text-ink-primary">{area.name}</span>
+                  <div className="flex gap-1.5">
+                    {AREA_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => toggleAreaLevel(area.name, level)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                          areaLevels[area.name] === level
+                            ? "border-accent-600 bg-accent-50 text-accent-700"
+                            : "border-border bg-surface text-ink-secondary hover:border-ink-muted",
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        {step === 1 ? (
-          <div>
-            <h2 className="text-sm font-semibold text-ink-primary">What do you already know?</h2>
-            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">
-              Select topics from the {effectiveSlug} track you are comfortable with.
-            </p>
-            {graphQuery.isLoading ? (
-              <p className="text-sm text-ink-muted">Loading topics...</p>
-            ) : topics.length === 0 ? (
-              <p className="text-sm text-ink-muted">
-                No topic list available for this track. You can continue without selecting any.
-              </p>
-            ) : (
-              <div className="flex max-h-64 flex-wrap gap-1.5 overflow-y-auto">
-                {topics.map((topic) => {
+            <button
+              type="button"
+              onClick={() => setTopicsOpen((previous) => !previous)}
+              className="mt-3 flex items-center gap-1 text-xs font-medium text-ink-secondary hover:text-ink-primary"
+            >
+              {topicsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              Mark topics you already know ({knownTopics.length} selected)
+            </button>
+            {topicsOpen ? (
+              <div className="mt-2 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
+                {analysis.areas.flatMap((area) => area.topics).map((topic) => {
                   const selected = knownTopics.includes(topic)
                   return (
                     <button
@@ -181,43 +264,15 @@ export function Onboarding() {
                   )
                 })}
               </div>
-            )}
-            <p className="mt-2 text-xs text-ink-muted">{knownTopics.length} selected</p>
+            ) : null}
           </div>
         ) : null}
 
         {step === 2 ? (
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">How would you rate yourself?</h2>
-            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">
-              A short quiz next will fine tune this, or skip it if you prefer.
-            </p>
-            <div className="grid gap-2">
-              {SKILL_LEVELS.map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setSkillLevel(level)}
-                  className={cn(
-                    "flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                    skillLevel === level
-                      ? "border-accent-600 bg-accent-50 text-accent-700"
-                      : "border-border bg-surface text-ink-primary hover:bg-background",
-                  )}
-                >
-                  <span className="font-medium capitalize">{level}</span>
-                  {skillLevel === level ? <Check className="h-4 w-4" /> : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div>
             <h2 className="text-sm font-semibold text-ink-primary">Placement quiz</h2>
             <p className="mb-3 mt-0.5 text-sm text-ink-secondary">
-              {questions.length} questions on {effectiveSlug} fundamentals. Skip any you are unsure about.
+              {questions.length} questions on {slug} fundamentals. Skip any you are unsure about.
             </p>
             <div className="space-y-4">
               {questions.map((question, questionIndex) => (
@@ -257,17 +312,37 @@ export function Onboarding() {
           </div>
         ) : null}
 
-        {step === 4 && result !== null ? (
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent-50 text-accent-700">
-              <Check className="h-6 w-6" />
+        {step === 3 && plan !== null ? (
+          <div>
+            <h2 className="text-sm font-semibold text-ink-primary">Your personalized roadmap</h2>
+            <p className="mb-3 mt-0.5 text-sm text-ink-secondary">{plan.summary}</p>
+            {result !== null ? (
+              <p className="mb-3 text-xs text-ink-muted">
+                You scored {result.score} / {result.total}, recommended level: {result.level}
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              {plan.phases.map((phase) => (
+                <div key={phase.name} className="rounded-lg border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-ink-primary">{phase.name}</p>
+                    <span className="flex items-center gap-1 rounded-full border border-accent-600 bg-accent-50 px-2 py-0.5 text-xs font-medium text-accent-700">
+                      <Flag className="h-3 w-3" />
+                      {phase.milestone}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{phase.topics.join(", ")}</p>
+                </div>
+              ))}
             </div>
-            <h2 className="text-sm font-semibold text-ink-primary">
-              You scored {result.score} / {result.total}
-            </h2>
-            <p className="mt-1 text-sm capitalize text-ink-secondary">Recommended level: {result.level}</p>
-            <p className="mx-auto mt-2 max-w-sm text-xs text-ink-muted">{result.summary}</p>
           </div>
+        ) : null}
+
+        {isBusy && step === 2 ? (
+          <p className="mt-3 flex items-center gap-2 text-xs text-ink-muted">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Building your personalized roadmap...
+          </p>
         ) : null}
 
         {error !== null ? <p className="mt-3 text-xs text-red-600">{error}</p> : null}
@@ -282,33 +357,28 @@ export function Onboarding() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back
           </Button>
-          {step < 2 ? (
-            <Button size="sm" variant="accent" onClick={() => setStep(step + 1)} disabled={!canNext}>
-              Next
-              <ArrowRight className="h-3.5 w-3.5" />
+          {step === 0 ? (
+            <Button size="sm" variant="accent" onClick={submitGoal} disabled={!canContinue || isBusy}>
+              {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Continue
+            </Button>
+          ) : null}
+          {step === 1 ? (
+            <Button size="sm" variant="accent" onClick={startQuiz} disabled={isBusy}>
+              {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              Start placement quiz
             </Button>
           ) : null}
           {step === 2 ? (
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={saveAndFinish} disabled={isBusy}>
-                Skip quiz
-              </Button>
-              <Button size="sm" variant="accent" onClick={startQuiz} disabled={isBusy}>
-                {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                Start quiz
-              </Button>
-            </div>
-          ) : null}
-          {step === 3 ? (
             <Button size="sm" variant="accent" onClick={finishQuiz} disabled={isBusy}>
               {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               Finish quiz
             </Button>
           ) : null}
-          {step === 4 ? (
-            <Button size="sm" variant="accent" onClick={saveAndFinish} disabled={isBusy}>
+          {step === 3 ? (
+            <Button size="sm" variant="accent" onClick={startLearning} disabled={isBusy}>
               {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Show my roadmap
+              Start learning
             </Button>
           ) : null}
         </div>

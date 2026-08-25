@@ -119,7 +119,12 @@ export function Dashboard() {
         </div>
         <div className="space-y-5">
           <AiAssistantPanel nextTopic={nextTopic ?? null} />
-          <SkillSnapshot allTopics={topics} completedTopics={completedTopics} isLoading={roadmapQuery.isLoading} />
+          <SkillSnapshot
+            allTopics={topics}
+            completedTopics={completedTopics}
+            isLoading={roadmapQuery.isLoading}
+            slug={slug}
+          />
           <UpcomingItems topics={upcomingTopics} />
           <Link
             to="/skill-graph"

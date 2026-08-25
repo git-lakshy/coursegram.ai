@@ -4,12 +4,15 @@ import type {
   ChatMessage,
   ChatResponse,
   CoursesResponse,
+  GoalAnalysisResponse,
   GradeResponse,
   HealthResponse,
   LearnerProfile,
   MeResponse,
+  PlanResponse,
   QuizQuestion,
   QuizResponse,
+  RoadmapCategoriesResponse,
   RoadmapGraphResponse,
   RoadmapResponse,
   RoadmapSlugsResponse,
@@ -108,6 +111,14 @@ export function updateProfile(token: string, profile: LearnerProfile): Promise<L
   return request<LearnerProfile>("/profile", { method: "PUT", body: profile, token })
 }
 
+export function analyzeGoal(token: string, goalText: string): Promise<GoalAnalysisResponse> {
+  return request<GoalAnalysisResponse>("/onboarding/goal", {
+    method: "POST",
+    body: { goal_text: goalText },
+    token,
+  })
+}
+
 export function generateQuiz(
   token: string,
   slug: string,
@@ -133,6 +144,20 @@ export function gradeQuiz(
   })
 }
 
+export function generatePlan(
+  token: string,
+  slug: string,
+  goalText: string,
+  areaLevels: Record<string, string>,
+  knownTopics: string[],
+): Promise<PlanResponse> {
+  return request<PlanResponse>("/onboarding/plan", {
+    method: "POST",
+    body: { slug, goal_text: goalText, area_levels: areaLevels, known_topics: knownTopics },
+    token,
+  })
+}
+
 export function sendAssistantMessage(
   token: string,
   message: string,
@@ -143,6 +168,10 @@ export function sendAssistantMessage(
     body: { message, history },
     token,
   })
+}
+
+export function getRoadmapCategories(slug: string): Promise<RoadmapCategoriesResponse> {
+  return request<RoadmapCategoriesResponse>(`/roadmaps/${slug}/categories`)
 }
 
 export { ApiError }

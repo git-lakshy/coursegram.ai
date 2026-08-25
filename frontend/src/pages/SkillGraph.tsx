@@ -17,7 +17,7 @@ import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useAuth } from "@/hooks/useAuth"
-import { useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
+import { useRoadmapCategories, useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { buildTopicStatusMap } from "@/lib/graphStatus"
 import type { TopicStatus } from "@/lib/graphStatus"
 import { groupTopicsIntoSkillCategories } from "@/lib/skillCategories"
@@ -64,11 +64,21 @@ export function SkillGraph() {
   const slug = selectedSlug ?? profile?.target_role_slug ?? undefined
 
   const graphQuery = useRoadmapGraph(slug)
+  const categoriesQuery = useRoadmapCategories(slug)
   const { completedTopics } = useLocalProgress(slug)
 
   const nodes = useMemo(() => graphQuery.data?.nodes ?? [], [graphQuery.data])
   const statusMap = useMemo(() => buildTopicStatusMap(nodes, completedTopics), [nodes, completedTopics])
-  const categories = useMemo(() => groupTopicsIntoSkillCategories(nodes.map((node) => node.name)), [nodes])
+  const fallbackCategories = useMemo(() => groupTopicsIntoSkillCategories(nodes.map((node) => node.name)), [nodes])
+  const categories = useMemo(() => {
+    const remote = categoriesQuery.data?.categories
+    if (!remote || remote.length === 0) return fallbackCategories
+    return remote.map((category) => ({
+      id: category.name.toLowerCase(),
+      label: category.name,
+      topics: category.topics,
+    }))
+  }, [categoriesQuery.data, fallbackCategories])
 
   const completedCount = nodes.filter((node) => statusMap.get(node.id) === "completed").length
   const readyCount = nodes.filter((node) => statusMap.get(node.id) === "ready").length

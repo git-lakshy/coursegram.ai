@@ -6,5 +6,6 @@ export function useCourses(topic: string, limit = 20) {
   return useQuery({
     queryKey: ["courses", topic, limit],
     queryFn: () => getCourses(topic, limit),
+    enabled: topic.trim() !== "",
   })
 }
