@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 
 LISTING_URL = "https://roadmap.sh/roadmaps"
 ROADMAP_URL_TEMPLATE = "https://roadmap.sh/{slug}.json"
-DATA_DIR = Path(__file__).parent / "data" / "roadmapsh"
+DATA_DIR = Path(__file__).parent / "data" / "ingested" / "roadmapsh"
 SKIP_SLUGS = {"python", "frontend"}  # already curated as graph seeds
 NON_ROADMAP_SLUGS = {
     "about",
@@ -58,21 +58,26 @@ def scrape_slugs() -> list[str]:
 
 
 def clean_label(text: str) -> str:
-    return TAG_PATTERN.sub("", str(text)).replace("`", "").strip()
+    cleaned = TAG_PATTERN.sub("", str(text)).replace("`", "")
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 SKIP_LABELS = {"", "horizontal node", "vertical node"}
 LABEL_MAX_LENGTH = 60
 JUNK_PATTERNS = (
     "roadmap.sh",
+    "roadmap",
     "http",
-    "related roadmap",
+    "related",
     "detailed version",
     "click here",
     "community",
     "youtube",
     "twitter",
     "discord",
+    "newsletter",
+    "subscribe",
+    "official documentation",
 )
 
 

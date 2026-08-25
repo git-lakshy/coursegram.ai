@@ -9,7 +9,7 @@ generated JSON by hand as the graph is refined.
 import json
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data" / "roadmaps"
+DATA_DIR = Path(__file__).parent / "data" / "curated" / "roadmaps"
 
 # Curated prerequisite edges per slug: topic name to required topic names.
 OVERRIDES = {

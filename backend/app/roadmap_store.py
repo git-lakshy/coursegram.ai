@@ -10,8 +10,8 @@ import json
 import re
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data" / "roadmaps"
-INGESTED_DIR = Path(__file__).parent / "data" / "roadmapsh"
+DATA_DIR = Path(__file__).parent / "data" / "curated" / "roadmaps"
+INGESTED_DIR = Path(__file__).parent / "data" / "ingested" / "roadmapsh"
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
@@ -32,7 +32,11 @@ def list_roadmap_slugs() -> list[str]:
         for path in DATA_DIR.glob("*.json")
         if not path.stem.endswith(".graph")
     }
-    ingested = {path.stem for path in INGESTED_DIR.glob("*.json")}
+    ingested = {
+        path.stem.replace(".graph", "")
+        for path in INGESTED_DIR.glob("*.json")
+        if not path.stem.endswith(".graph")
+    }
     return sorted(curated | ingested)
 
 

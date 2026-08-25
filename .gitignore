@@ -7,8 +7,5 @@ venv/
 .pytest_cache/
 temp/
 start.bat
-backend/app/data/users.json
-backend/app/data/profiles.json
-backend/app/data/dev_secret.key
-backend/app/data/roadmapsh/
+backend/app/data/runtime/
 frontend/.env
