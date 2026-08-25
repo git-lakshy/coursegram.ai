@@ -5,8 +5,11 @@ import { BrowserRouter } from "react-router-dom"
 import { Toaster } from "sonner"
 
 import { queryClient } from "@/lib/queryClient"
+import { initFirebaseAnalytics } from "@/lib/firebase"
 import App from "@/App"
 import "@/index.css"
+
+void initFirebaseAnalytics()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
