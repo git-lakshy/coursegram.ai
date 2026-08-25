@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { ArrowRight, Loader2, Sparkles, Waypoints } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { MarkdownContent } from "@/components/common/MarkdownContent"
 import { Card } from "@/components/ui/card"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError, sendAssistantMessage } from "@/lib/api"
@@ -77,7 +78,7 @@ export function AiAssistantPanel({ nextTopic }: AiAssistantPanelProps) {
         </>
       ) : (
         <>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-ink-primary">{reply}</p>
+          <div className="text-sm leading-relaxed text-ink-primary"><MarkdownContent content={reply} /></div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setReply(null)}>
               Ask something else
@@ -99,3 +100,4 @@ export function AiAssistantPanel({ nextTopic }: AiAssistantPanelProps) {
     </Card>
   )
 }
+

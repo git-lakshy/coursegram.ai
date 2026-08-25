@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowUp, Loader2, Sparkles } from "lucide-react"
 
+import { MarkdownContent } from "@/components/common/MarkdownContent"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
 import { ApiError, sendAssistantMessage } from "@/lib/api"
@@ -29,8 +30,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-700">
           <Sparkles className="h-3 w-3" />
         </div>
-        <div className="rounded-2xl rounded-tl-md border border-border bg-surface px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap text-ink-primary">
-          {message.content}
+        <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-border bg-surface px-3.5 py-2 text-sm leading-relaxed text-ink-primary">
+          <MarkdownContent content={message.content} />
         </div>
       </div>
     </div>
