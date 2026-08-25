@@ -9,14 +9,54 @@ and the frontend skips straight to the roadmap.
 
 import json
 import re
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 from app import llm
-from app.roadmap_store import RoadmapNotFound, load_roadmap_topics
+from app.roadmap_store import RoadmapNotFound, list_roadmap_slugs, load_roadmap_topics
 
 QUIZ_QUESTION_COUNT = 6
+
+
+class GoalRequest(BaseModel):
+    goal_text: str = Field(min_length=3, max_length=2000, description="Free text learning goal")
+
+
+class GoalArea(BaseModel):
+    name: str
+    topics: list[str]
+
+
+class GoalAnalysisResponse(BaseModel):
+    track_slug: str
+    summary: str
+    areas: list[GoalArea]
+
+
+class AreaLevel(BaseModel):
+    area: str
+    level: str = Field(pattern="^(beginner|intermediate|advanced)$")
+
+
+class PlanRequest(BaseModel):
+    slug: str
+    goal_text: str = ""
+    area_levels: list[AreaLevel] = Field(default_factory=list)
+    known_topics: list[str] = Field(default_factory=list)
+
+
+class PlanPhase(BaseModel):
+    name: str
+    milestone: str
+    topics: list[str]
+
+
+class PlanResponse(BaseModel):
+    slug: str
+    summary: str
+    phases: list[PlanPhase]
 
 
 class QuizRequest(BaseModel):
@@ -48,6 +88,128 @@ class GradeResponse(BaseModel):
     total: int
     recommended_level: str
     summary: str
+
+
+def _parse_json(raw: str) -> dict:
+    """Parse an LLM JSON reply, tolerating code fences around it."""
+    cleaned = raw.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", cleaned, re.DOTALL)
+    if fence:
+        cleaned = fence.group(1)
+    try:
+        data = json.loads(cleaned)
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail=f"LLM returned invalid JSON: {error}")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="LLM returned unexpected JSON shape")
+    return data
+
+
+def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
+    """Parse a free text goal into a track and major skill areas."""
+    if not llm.is_configured():
+        raise HTTPException(status_code=503, detail="LLM is not configured on the server")
+
+    slugs = list_roadmap_slugs()
+    prompt = (
+        "You are the Coursegram.ai onboarding assistant. A learner describes "
+        "their goal in natural language. Pick the best matching track from the "
+        "available tracks and identify the 3 to 6 major skill areas of that "
+        "track the learner must master. Respond with JSON only: "
+        '{"track_slug": "...", "summary": "one sentence confirming the goal", '
+        '"areas": [{"name": "...", "topics": ["..."]}]} where area topics are '
+        "short skill names, not full courses.\n"
+        f"Available track slugs: {', '.join(slugs)}.\n"
+        f"Learner goal: {payload.goal_text}"
+    )
+    raw = llm.chat_completion(
+        [{"role": "user", "content": prompt}],
+        json_mode=True,
+        temperature=0.2,
+    )
+    data = _parse_json(raw)
+    track_slug = str(data.get("track_slug", "")).strip()
+    if track_slug not in slugs:
+        raise HTTPException(status_code=502, detail="The assistant could not match your goal to a track")
+    areas = [
+        GoalArea(name=str(item.get("name", "")).strip(), topics=[str(t) for t in item.get("topics", [])])
+        for item in data.get("areas", [])
+        if isinstance(item, dict) and item.get("name")
+    ]
+    if not areas:
+        raise HTTPException(status_code=502, detail="The assistant could not identify skill areas")
+    return GoalAnalysisResponse(
+        track_slug=track_slug,
+        summary=str(data.get("summary", "")).strip(),
+        areas=areas,
+    )
+
+
+def generate_plan(payload: PlanRequest) -> PlanResponse:
+    """Generate a personalized roadmap from the track reference data."""
+    if not llm.is_configured():
+        raise HTTPException(status_code=503, detail="LLM is not configured on the server")
+
+    try:
+        topics = load_roadmap_topics(payload.slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+
+    known = set(topic.lower() for topic in payload.known_topics)
+    remaining = [topic for topic in topics if topic.lower() not in known]
+    levels = ", ".join(f"{item.area}: {item.level}" for item in payload.area_levels) or "unknown"
+    goal = payload.goal_text or f"master {payload.slug}"
+
+    prompt = (
+        "You are the Coursegram.ai path generator. Build a personalized "
+        f"learning roadmap for a learner whose goal is: {goal}. "
+        f"Track: {payload.slug}. Self rated proficiency per skill area: {levels}. "
+        f"Topics the learner already knows (skip these): "
+        f"{', '.join(payload.known_topics) if payload.known_topics else 'none'}.\n"
+        "Use this ordered reference topic list from the track as the source of "
+        "truth, taking topics verbatim where possible:\n"
+        f"{'; '.join(remaining[:80])}\n\n"
+        "Produce 3 to 5 sequential phases. Each phase has a short name, one "
+        "concrete milestone the learner can demonstrate, and its topics taken "
+        "from the reference list. If the learner rated an area intermediate or "
+        "advanced, start that area at the next difficulty tier and include "
+        "more advanced topics. Respond with JSON only: "
+        '{"summary": "one sentence describing the path", "phases": '
+        '[{"name": "...", "milestone": "...", "topics": ["..."]}]}'
+    )
+    raw = llm.chat_completion(
+        [{"role": "user", "content": prompt}],
+        json_mode=True,
+        temperature=0.3,
+        max_tokens=3000,
+    )
+    data = _parse_json(raw)
+    phases = [
+        PlanPhase(
+            name=str(item.get("name", "")).strip(),
+            milestone=str(item.get("milestone", "")).strip(),
+            topics=[str(topic) for topic in item.get("topics", []) if str(topic).strip()],
+        )
+        for item in data.get("phases", [])
+        if isinstance(item, dict) and item.get("name")
+    ]
+    if not phases:
+        raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
+    return PlanResponse(
+        slug=payload.slug,
+        summary=str(data.get("summary", "")).strip(),
+        phases=phases,
+    )
+
+
+def personalize(payload: PlanResponse) -> dict:
+    """Convert a generated plan into the stored profile shape."""
+    return {
+        "slug": payload.slug,
+        "summary": payload.summary,
+        "phases": [phase.model_dump() for phase in payload.phases],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def generate_quiz(payload: QuizRequest) -> QuizResponse:

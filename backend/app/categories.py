@@ -100,7 +100,8 @@ def get_categories(slug: str) -> dict:
         except (llm.LLMError, ValueError):
             categories = None
         if categories is None:
-            categories = _fallback_categories(topics)
+            # Fallbacks are never cached so a real grouping can replace them.
+            return {"slug": slug, "categories": _fallback_categories(topics)}
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     with open(cache, "w", encoding="utf-8") as file:

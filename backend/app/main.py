@@ -10,10 +10,25 @@ from pydantic import BaseModel, Field
 from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
 from app.auth_security import issue_token, verify_password
+from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app.llm import LLMError
 from app.models import LearnerProfile
-from app.onboarding import GradeRequest, GradeResponse, QuizRequest, QuizResponse, generate_quiz, grade_quiz
+from app.onboarding import (
+    GoalAnalysisResponse,
+    GoalRequest,
+    GradeRequest,
+    GradeResponse,
+    PlanRequest,
+    PlanResponse,
+    QuizRequest,
+    QuizResponse,
+    analyze_goal,
+    generate_plan,
+    generate_quiz,
+    grade_quiz,
+    personalize,
+)
 from app.profile_store import load_profile, save_profile
 from app.roadmap_store import (
     RoadmapNotFound,
@@ -190,3 +205,27 @@ def assistant_chat(
     """Reply to a learner question with profile and track context."""
     profile = load_profile(email)
     return chat(email, profile, payload)
+
+@app.get("/roadmaps/{slug}/categories")
+def get_roadmap_categories(slug: str) -> dict:
+    """Return meaningful skill categories for a track, cached after first run."""
+    try:
+        return get_categories(slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+
+
+@app.post("/onboarding/goal")
+def onboarding_goal(
+    payload: GoalRequest, email: str = Depends(get_current_user_email)
+) -> GoalAnalysisResponse:
+    """Parse a free text learning goal into a track and skill areas."""
+    return analyze_goal(payload)
+
+
+@app.post("/onboarding/plan")
+def onboarding_plan(
+    payload: PlanRequest, email: str = Depends(get_current_user_email)
+) -> PlanResponse:
+    """Generate a personalized roadmap from the track reference data."""
+    return generate_plan(payload)

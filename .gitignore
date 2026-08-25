@@ -8,4 +8,5 @@ venv/
 temp/
 start.bat
 backend/app/data/runtime/
+backend/app/data/ingested/
 frontend/.env

@@ -34,7 +34,7 @@ PROVIDERS = {
 }
 
 DEFAULT_PROVIDER = "groq"
-TIMEOUT_SECONDS = 60
+TIMEOUT_SECONDS = 120
 
 
 class LLMError(Exception):

@@ -1,6 +1,6 @@
 """Typed models for the learner profile."""
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,4 +28,8 @@ class LearnerProfile(BaseModel):
     onboarding_complete: bool = Field(
         default=False,
         description="Whether the first time onboarding flow has been finished",
+    )
+    personalized_roadmap: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="LLM generated roadmap with phases and milestones for the target track",
     )
