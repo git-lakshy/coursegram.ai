@@ -1,10 +1,26 @@
 """Endpoint tests. Coursera calls are mocked; no network access needed."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
 import app.coursera_client as coursera_client
 from app.main import app
+
+def _has_env_file() -> bool:
+    from pathlib import Path
+
+    env = Path(__file__).parent.parent / ".env"
+    if not env.exists():
+        return False
+    return any(line.startswith("DATABASE_URL=") for line in env.read_text(encoding="utf-8").splitlines())
+
+
+requires_database = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL") and not _has_env_file(),
+    reason="DATABASE_URL not configured",
+)
 
 
 @pytest.fixture()
@@ -22,6 +38,15 @@ def client(monkeypatch):
 
 def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_profile_without_database(client, monkeypatch):
+    import app.db as db
+
+    monkeypatch.setattr(db, "DATABASE_URL", "")
+    response = client.post("/auth/login", json={"email": "a@b.com", "password": "password123"})
+    assert response.status_code == 503
+    assert "administrator" in response.json()["detail"]
 
 
 def test_courses_unfiltered(client):
@@ -69,6 +94,7 @@ def test_roadmap_graph(client):
     assert all("prerequisites" in node for node in body["nodes"])
 
 
+@requires_database
 def test_register_login_and_profile(client):
     import uuid
 

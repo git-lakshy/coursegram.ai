@@ -1,53 +1,78 @@
-"""Persistence for per learner profiles.
+"""Persistence for per learner profiles backed by Postgres.
 
-Until a real database is introduced, profiles are stored as a JSON file
-under app/data, keyed by the authenticated learner's email. Writes are
-atomic so a crash mid write cannot corrupt stored data.
+Profiles are keyed by the authenticated learner's email.
 """
 
 import json
-import os
-from threading import Lock
 
+from sqlalchemy import text
+
+from app.db import get_engine
 from app.models import LearnerProfile
-
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "runtime")
-PROFILES_PATH = os.path.join(DATA_DIR, "profiles.json")
-
-_lock = Lock()
-
-
-def _read_profiles() -> dict:
-    if not os.path.exists(PROFILES_PATH):
-        return {}
-    try:
-        with open(PROFILES_PATH, "r", encoding="utf-8") as file:
-            payload = json.load(file)
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
 
 
 def load_profile(user_email: str) -> LearnerProfile:
     """Load the profile for a user, or return defaults when none exists."""
-    with _lock:
-        payload = _read_profiles().get(user_email)
-    if not isinstance(payload, dict):
+    engine = get_engine()
+    with engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT display_name, background, skill_level, target_role_slug, "
+                "known_topics, onboarding_complete, personalized_roadmap "
+                "FROM profiles WHERE email = :email"
+            ),
+            {"email": user_email},
+        ).fetchone()
+    if row is None:
         return LearnerProfile()
     try:
-        return LearnerProfile(**payload)
+        return LearnerProfile(
+            display_name=row[0],
+            background=row[1],
+            skill_level=row[2],
+            target_role_slug=row[3],
+            known_topics=row[4] or [],
+            onboarding_complete=row[5],
+            personalized_roadmap=row[6],
+        )
     except Exception:
         return LearnerProfile()
 
 
 def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
-    """Persist the profile for a user atomically and return it."""
-    with _lock:
-        profiles = _read_profiles()
-        profiles[user_email] = profile.model_dump()
-        os.makedirs(DATA_DIR, exist_ok=True)
-        tmp_path = PROFILES_PATH + ".tmp"
-        with open(tmp_path, "w", encoding="utf-8") as file:
-            json.dump(profiles, file, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, PROFILES_PATH)
+    """Persist the profile for a user and return it."""
+    engine = get_engine()
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (email) VALUES (:email) ON CONFLICT (email) DO NOTHING"
+            ),
+            {"email": user_email},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO profiles (email, display_name, background, skill_level, "
+                "target_role_slug, known_topics, onboarding_complete, personalized_roadmap, "
+                "updated_at) VALUES (:email, :display_name, :background, :skill_level, "
+                ":target_role_slug, :known_topics::jsonb, :onboarding_complete, "
+                ":personalized_roadmap::jsonb, now()) "
+                "ON CONFLICT (email) DO UPDATE SET display_name = :display_name, "
+                "background = :background, skill_level = :skill_level, "
+                "target_role_slug = :target_role_slug, known_topics = :known_topics::jsonb, "
+                "onboarding_complete = :onboarding_complete, "
+                "personalized_roadmap = :personalized_roadmap::jsonb, updated_at = now()"
+            ),
+            {
+                "email": user_email,
+                "display_name": profile.display_name,
+                "background": profile.background,
+                "skill_level": profile.skill_level,
+                "target_role_slug": profile.target_role_slug,
+                "known_topics": json.dumps(profile.known_topics),
+                "onboarding_complete": profile.onboarding_complete,
+                "personalized_roadmap": json.dumps(profile.personalized_roadmap)
+                if profile.personalized_roadmap is not None
+                else None,
+            },
+        )
     return profile

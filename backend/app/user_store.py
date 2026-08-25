@@ -1,21 +1,15 @@
-"""JSON file backed user store for local development.
+"""User store backed by Postgres.
 
-Passwords are stored as PBKDF2 hashes, never in plaintext. In production
-authentication moves to Firebase and this module is replaced by the
-Firebase user record; the rest of the app only depends on the auth module.
+Passwords are stored as PBKDF2 hashes for local auth. With Firebase,
+user records carry the Firebase authenticated email instead.
 """
 
-import json
-import os
 import secrets
-from threading import Lock
+
+from sqlalchemy import text
 
 from app.auth_security import hash_password
-
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "runtime")
-USERS_PATH = os.path.join(DATA_DIR, "users.json")
-
-_lock = Lock()
+from app.db import get_engine
 
 
 class UserAlreadyExists(Exception):
@@ -26,49 +20,64 @@ class UserNotFound(Exception):
     pass
 
 
-def _read_users() -> dict:
-    if not os.path.exists(USERS_PATH):
-        return {}
-    try:
-        with open(USERS_PATH, "r", encoding="utf-8") as file:
-            payload = json.load(file)
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _write_users(users: dict) -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    tmp_path = USERS_PATH + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as file:
-        json.dump(users, file, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, USERS_PATH)
-
-
 def create_user(email: str, password: str, display_name: str = "") -> dict:
-    """Create a user record with a hashed password and return it."""
+    """Create a user record with a hashed password and return public fields."""
     email = email.strip().lower()
-    with _lock:
-        users = _read_users()
-        if email in users:
+    engine = get_engine()
+    with engine.begin() as connection:
+        existing = connection.execute(
+            text("SELECT email FROM users WHERE email = :email"), {"email": email}
+        ).fetchone()
+        if existing is not None:
             raise UserAlreadyExists(email)
-        record = {
-            "email": email,
-            "display_name": display_name,
-            "password_salt": secrets.token_hex(16),
-            "password_hash": "",
-        }
-        record["password_hash"] = hash_password(password, record["password_salt"])
-        users[email] = record
-        _write_users(users)
-        return {k: v for k, v in record.items() if not k.startswith("password")}
+        salt = secrets.token_hex(16)
+        connection.execute(
+            text(
+                "INSERT INTO users (email, display_name, password_salt, password_hash) "
+                "VALUES (:email, :display_name, :salt, :hash)"
+            ),
+            {
+                "email": email,
+                "display_name": display_name,
+                "salt": salt,
+                "hash": hash_password(password, salt),
+            },
+        )
+    return {"email": email, "display_name": display_name}
 
 
 def get_user_record(email: str) -> dict:
-    """Return the full stored record including password fields, or raise."""
+    """Return the stored record including password fields, or raise."""
     email = email.strip().lower()
-    with _lock:
-        users = _read_users()
-        if email not in users:
-            raise UserNotFound(email)
-        return users[email]
+    engine = get_engine()
+    with engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT email, display_name, password_salt, password_hash "
+                "FROM users WHERE email = :email"
+            ),
+            {"email": email},
+        ).fetchone()
+    if row is None:
+        raise UserNotFound(email)
+    return {
+        "email": row[0],
+        "display_name": row[1],
+        "password_salt": row[2],
+        "password_hash": row[3],
+    }
+
+
+def get_or_create_firebase_user(email: str, display_name: str = "") -> dict:
+    """Return the user for a Firebase authenticated email, creating if needed."""
+    email = email.strip().lower()
+    engine = get_engine()
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (email, display_name) VALUES (:email, :display_name) "
+                "ON CONFLICT (email) DO NOTHING"
+            ),
+            {"email": email, "display_name": display_name},
+        )
+    return {"email": email, "display_name": display_name}

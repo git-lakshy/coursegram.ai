@@ -16,6 +16,7 @@ from app.auth import get_current_user_email
 from app.auth_security import issue_token, verify_password
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
+from app.db import DatabaseNotConfigured
 from app.llm import LLMError, close_client
 from app.models import LearnerProfile
 from app.onboarding import (
@@ -40,7 +41,7 @@ from app.roadmap_store import (
     load_roadmap_graph,
     load_roadmap_topics,
 )
-from app.user_store import UserNotFound, UserAlreadyExists, create_user, get_user_record
+from app.user_store import UserNotFound, UserAlreadyExists, create_user, get_or_create_firebase_user, get_user_record
 
 app = FastAPI(title="Coursegram API", version="1.0.0")
 
@@ -101,6 +102,14 @@ def upstream_error_handler(request, exc: UpstreamError):
 @app.exception_handler(LLMError)
 def llm_error_handler(request, exc: LLMError):
     return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(DatabaseNotConfigured)
+def database_error_handler(request, exc: DatabaseNotConfigured):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database is not active. Please contact the administrator."},
+    )
 
 
 @app.exception_handler(Exception)
@@ -231,8 +240,10 @@ def login(payload: LoginRequest) -> TokenResponse:
 
 @app.get("/auth/me")
 def me(email: str = Depends(get_current_user_email)) -> dict:
-    """Return the authenticated identity for the presented bearer token."""
+    """Return the authenticated identity, ensuring a user row exists."""
+    get_or_create_firebase_user(email)
     return {"email": email}
+
 
 @app.post("/onboarding/quiz")
 async def onboarding_quiz(
@@ -281,5 +292,6 @@ async def onboarding_plan(
 ) -> PlanResponse:
     """Generate a personalized roadmap from the track reference data."""
     return await generate_plan(payload)
+
 
 
