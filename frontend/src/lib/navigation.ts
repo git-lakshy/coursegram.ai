@@ -27,7 +27,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Main",
     items: [
-      { label: "Dashboard", to: "/", icon: LayoutDashboard },
+      { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
       { label: "My Roadmap", to: "/roadmap", icon: Route },
       { label: "Courses", to: "/courses", icon: BookOpen },
       { label: "Projects", to: "/projects", icon: FolderKanban },
