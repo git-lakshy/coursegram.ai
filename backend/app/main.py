@@ -162,9 +162,17 @@ def get_courses(
     topic: str = Query(default="", description="Optional keyword filter on the course name"),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> dict:
-    """Return a list of Coursera courses, optionally filtered by keyword."""
+    """Return courses from Coursera and Udemy, optionally filtered by keyword."""
     courses = fetch_courses(limit=limit, topic=topic)
-    return {"count": len(courses), "courses": courses}
+    for course in courses:
+        course.setdefault("source", "coursera")
+    from app.udemy_client import fetch_courses as fetch_udemy
+
+    udemy_courses = fetch_udemy(limit=max(1, limit // 2), topic=topic)
+    merged = courses + [
+        course for course in udemy_courses if course not in courses
+    ]
+    return {"count": len(merged), "courses": merged}
 
 
 @app.post("/roadmaps/{slug}/regenerate")

@@ -73,7 +73,11 @@ export function Roadmap() {
           </p>
         </div>
         {slugsQuery.data && slugsQuery.data.slugs.length > 0 ? (
-          <Select value={slug} onChange={(event) => setSelectedSlug(event.target.value)}>
+          <Select
+            value={slug}
+            onChange={(event) => setSelectedSlug(event.target.value)}
+            className="w-48 shrink-0 self-start"
+          >
             {slugsQuery.data.slugs.map((item) => (
               <option key={item} value={item}>
                 {item}
