@@ -436,7 +436,8 @@ def onboarding_grade(
 ) -> GradeResponse:
     """Grade a placement quiz locally and recommend a skill level."""
     response = grade_quiz(payload)
-    record_event(_email, "quiz_taken", {"slug": payload.slug, "score": response.score})
+    topic = payload.questions[0].topic if payload.questions else ""
+    record_event(_email, "quiz_taken", {"topic": topic, "score": response.score})
     background_tasks.add_task(refresh_learner_context, _email)
     return response
 
