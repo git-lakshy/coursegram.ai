@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     PRIMARY KEY (email, resource_id)
 );
 
+CREATE TABLE IF NOT EXISTS events (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS events_email_created_idx ON events (email, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,
     doc JSONB NOT NULL,

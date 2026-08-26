@@ -1,5 +1,7 @@
 import { Bookmark, Clock3, Star } from "lucide-react"
 
+import { useAuth } from "@/hooks/useAuth"
+import { recordEvent } from "@/lib/api"
 import type { ResourceItem } from "@/types"
 
 type ResourceCardProps = {
@@ -9,11 +11,24 @@ type ResourceCardProps = {
 }
 
 export function ResourceCard({ resource, saved, onToggleSave }: ResourceCardProps) {
+  const { token } = useAuth()
+
+  function handleOpen() {
+    if (token !== null) {
+      void recordEvent(token, "resource_opened", {
+        resource_id: resource.id,
+        provider: resource.provider,
+        type: resource.type,
+      }).catch(() => undefined)
+    }
+  }
+
   return (
     <a
       href={resource.url}
       target="_blank"
       rel="noreferrer"
+      onClick={handleOpen}
       className="relative flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 transition-colors hover:bg-background"
     >
       {onToggleSave ? (

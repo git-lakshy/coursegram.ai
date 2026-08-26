@@ -20,6 +20,7 @@ import type {
   RoadmapGraphResponse,
   RoadmapResponse,
   RoadmapSlugsResponse,
+  StreakResponse,
 } from "@/types"
 
 const TOKEN_KEY = "coursegram.token"
@@ -236,5 +237,21 @@ export function removeBookmark(
     method: "DELETE",
     token,
   })
+}
+
+export function recordEvent(
+  token: string,
+  type: string,
+  detail: Record<string, unknown> = {},
+): Promise<{ recorded: boolean }> {
+  return request<{ recorded: boolean }>("/events", {
+    method: "POST",
+    body: { type, detail },
+    token,
+  })
+}
+
+export function getStreak(token: string): Promise<StreakResponse> {
+  return request<StreakResponse>("/streak", { token })
 }
 

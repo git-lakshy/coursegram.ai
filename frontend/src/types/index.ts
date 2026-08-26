@@ -30,6 +30,11 @@ export type ProgressResponse = {
   completed: string[]
 }
 
+export type StreakResponse = {
+  streak_days: number
+  events_this_month: number
+}
+
 export type ItemStatus = "completed" | "current" | "upcoming"
 
 export type RoadmapStage = {

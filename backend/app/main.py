@@ -20,6 +20,7 @@ from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app.db import DatabaseNotConfigured
 from app.llm import LLMError, close_client
+from app.event_store import events_this_month, learning_streak, record_event
 from app.learner_context import build_learner_context
 from app.models import LearnerProfile
 from app.onboarding import (
@@ -230,6 +231,7 @@ def add_bookmark_endpoint(
     from app.bookmark_store import add_bookmark
 
     add_bookmark(email, resource_id)
+    record_event(email, "resource_saved", {"resource_id": resource_id})
     return {"resource_id": resource_id, "bookmarked": True}
 
 
@@ -260,10 +262,40 @@ def put_topic_progress(
     email: str = Depends(get_current_user_email),
 ) -> dict:
     """Replace the learner's completed topics for a roadmap."""
+    previous = get_progress(email, slug)
     completed = save_progress(email, slug, payload.completed)
+    for topic in completed:
+        if topic not in previous:
+            record_event(email, "topic_completed", {"slug": slug, "topic": topic})
+    for topic in previous:
+        if topic not in completed:
+            record_event(email, "topic_uncompleted", {"slug": slug, "topic": topic})
     if completed:
         background_tasks.add_task(refresh_learner_context, email)
     return {"slug": slug, "completed": completed}
+
+
+class EventRequest(BaseModel):
+    type: str = Field(min_length=1, max_length=50)
+    detail: dict = Field(default_factory=dict)
+
+
+@app.post("/events")
+def record_activity(
+    payload: EventRequest, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Record a study activity event from the client."""
+    record_event(email, payload.type, payload.detail)
+    return {"recorded": True}
+
+
+@app.get("/streak")
+def get_streak(email: str = Depends(get_current_user_email)) -> dict:
+    """Return the learner's current learning streak and monthly activity."""
+    return {
+        "streak_days": learning_streak(email),
+        "events_this_month": events_this_month(email),
+    }
 
 
 @app.get("/roadmaps")
@@ -347,6 +379,7 @@ def onboarding_grade(
 ) -> GradeResponse:
     """Grade a placement quiz locally and recommend a skill level."""
     response = grade_quiz(payload)
+    record_event(_email, "quiz_taken", {"slug": payload.slug, "score": response.score})
     background_tasks.add_task(refresh_learner_context, _email)
     return response
 
@@ -381,7 +414,9 @@ async def onboarding_plan(
     payload: PlanRequest, _email: str = Depends(get_current_user_email)
 ) -> PlanResponse:
     """Generate a personalized roadmap from the track reference data."""
-    return await generate_plan(payload)
+    response = await generate_plan(payload)
+    record_event(_email, "plan_generated", {"slug": payload.slug})
+    return response
 
 
 

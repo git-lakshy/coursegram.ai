@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { Bell, Menu, Search, UserRound } from "lucide-react"
+import { Bell, Flame, Menu, Search, UserRound } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/useAuth"
+import { useStreak } from "@/hooks/useStreak"
 import { buildNotifications, readDismissedIds, storeDismissedIds } from "@/lib/notifications"
 import { cn } from "@/lib/utils"
 
 export function Topbar({ onOpenMenu }: { onOpenMenu?: () => void }) {
   const { email, profile } = useAuth()
+  const { streakDays } = useStreak()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [dismissed, setDismissed] = useState<string[]>(() => readDismissedIds())
@@ -54,6 +56,15 @@ export function Topbar({ onOpenMenu }: { onOpenMenu?: () => void }) {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
+        {streakDays > 0 ? (
+          <span
+            className="hidden items-center gap-1 rounded-md bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 sm:inline-flex"
+            title={`${streakDays} day learning streak`}
+          >
+            <Flame className="h-3.5 w-3.5" />
+            {streakDays}
+          </span>
+        ) : null}
         <div ref={containerRef} className="relative">
           <button
             type="button"
