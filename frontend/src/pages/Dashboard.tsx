@@ -6,14 +6,17 @@ import { AiAssistantPanel } from "@/components/dashboard/AiAssistantPanel"
 import { EmptyState } from "@/components/common/EmptyState"
 import { MetricCard } from "@/components/dashboard/MetricCard"
 import { RecommendedCourses } from "@/components/dashboard/RecommendedCourses"
+import { ResourceCard } from "@/components/resources/ResourceCard"
 import { RoadmapProgress } from "@/components/dashboard/RoadmapProgress"
 import { SkillSnapshot } from "@/components/dashboard/SkillSnapshot"
 import { UpcomingItems } from "@/components/dashboard/UpcomingItems"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/hooks/useAuth"
 import { useCourses } from "@/hooks/useCourses"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
+import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
 
@@ -26,7 +29,7 @@ function greeting(): string {
 
 export function Dashboard() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
-  const { profile } = useAuth()
+  const { profile, token } = useAuth()
   const { data: slugsData } = useRoadmapSlugs()
   const slug = selectedSlug ?? profile?.target_role_slug ?? undefined
 
@@ -51,6 +54,10 @@ export function Dashboard() {
   const upcomingTopics = topics.filter((topic) => !completedTopics.includes(topic)).slice(0, 5)
 
   const coursesQuery = useCourses(nextTopic ?? "", 4)
+  const matchedResourcesQuery = useNextWithResources(slug, Boolean(token))
+  const matchedResources = (matchedResourcesQuery.data?.next ?? [])
+    .flatMap((topic) => topic.resources)
+    .slice(0, 4)
 
   const totalTopics = topics.length
   const completedCount = completedTopics.filter((topic) => topics.includes(topic)).length
@@ -121,6 +128,28 @@ export function Dashboard() {
             isError={roadmapQuery.isError}
             onRetry={() => roadmapQuery.refetch()}
           />
+          {matchedResourcesQuery.isError || matchedResources.length === 0 ? null : (
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                Matched resources
+              </p>
+              {matchedResourcesQuery.isLoading ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {[0, 1, 2, 3].map((key) => (
+                    <Skeleton key={key} className="h-24 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto">
+                  {matchedResources.map((resource) => (
+                    <div key={resource.id} className="w-56 shrink-0">
+                      <ResourceCard resource={resource} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <RecommendedCourses
             courses={coursesQuery.data?.courses ?? []}
             isLoading={coursesQuery.isLoading}

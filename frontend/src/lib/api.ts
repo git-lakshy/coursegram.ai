@@ -8,9 +8,11 @@ import type {
   HealthResponse,
   LearnerProfile,
   MeResponse,
+  NextWithResourcesResponse,
   PlanResponse,
   QuizQuestion,
   QuizResponse,
+  ResourcesResponse,
   RoadmapCategoriesResponse,
   RoadmapGraphResponse,
   RoadmapResponse,
@@ -162,6 +164,36 @@ export function sendAssistantMessage(
 
 export function getRoadmapCategories(slug: string): Promise<RoadmapCategoriesResponse> {
   return request<RoadmapCategoriesResponse>(`/roadmaps/${slug}/categories`)
+}
+
+export function getResources(
+  topics: string[],
+  level: string,
+  opts: { free?: boolean; types?: string[]; limit?: number } = {},
+): Promise<ResourcesResponse> {
+  const params = new URLSearchParams()
+  params.set("topics", topics.join(","))
+  params.set("level", level)
+  if (opts.free !== undefined) {
+    params.set("free", String(opts.free))
+  }
+  if (opts.types !== undefined && opts.types.length > 0) {
+    params.set("type", opts.types.join(","))
+  }
+  params.set("limit", String(opts.limit ?? 6))
+  return request<ResourcesResponse>(`/resources?${params.toString()}`)
+}
+
+export function getNextWithResources(
+  token: string,
+  slug: string,
+  limitTopics = 3,
+  resourcesPerTopic = 3,
+): Promise<NextWithResourcesResponse> {
+  return request<NextWithResourcesResponse>(
+    `/roadmaps/${slug}/next-with-resources?limit_topics=${limitTopics}&resources_per_topic=${resourcesPerTopic}`,
+    { token },
+  )
 }
 
 export { ApiError }

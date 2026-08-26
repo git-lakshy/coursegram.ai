@@ -128,3 +128,37 @@ export type RoadmapCategoriesResponse = {
   categories: { name: string; topics: string[] }[]
 }
 
+export type ResourceItem = {
+  id: string
+  name: string
+  provider: string
+  type: string
+  url: string
+  free: boolean
+  level: string
+  duration_hours: number | null
+  rating: number | null
+  description: string | null
+  matched_topics: string[]
+  score: number | null
+}
+
+export type ResourcesResponse = {
+  count: number
+  resources: ResourceItem[]
+}
+
+export type NextTopicWithResources = {
+  id: string
+  name: string
+  domain: string
+  level: string
+  keywords: string[]
+  resources: ResourceItem[]
+}
+
+export type NextWithResourcesResponse = {
+  slug: string
+  next: NextTopicWithResources[]
+}
+
