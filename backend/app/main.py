@@ -69,7 +69,7 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -207,6 +207,41 @@ def get_next_with_resources(
 
 class ProgressUpdate(BaseModel):
     completed: list[str] = Field(default_factory=list, max_length=500)
+
+
+class BookmarkRequest(BaseModel):
+    resource_id: str = Field(min_length=1, max_length=200)
+
+
+@app.get("/bookmarks")
+def list_bookmarks_endpoint(email: str = Depends(get_current_user_email)) -> dict:
+    """Return the learner's saved resources."""
+    from app.bookmark_store import list_bookmarks
+
+    docs = list_bookmarks(email)
+    return {"count": len(docs), "resources": docs}
+
+
+@app.put("/bookmarks/{resource_id}")
+def add_bookmark_endpoint(
+    resource_id: str, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Save a resource for the learner."""
+    from app.bookmark_store import add_bookmark
+
+    add_bookmark(email, resource_id)
+    return {"resource_id": resource_id, "bookmarked": True}
+
+
+@app.delete("/bookmarks/{resource_id}")
+def remove_bookmark_endpoint(
+    resource_id: str, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Remove a saved resource."""
+    from app.bookmark_store import remove_bookmark
+
+    remove_bookmark(email, resource_id)
+    return {"resource_id": resource_id, "bookmarked": False}
 
 
 @app.get("/progress/{slug}")

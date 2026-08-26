@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
+import { useBookmarks } from "@/hooks/useBookmarks"
 import { useAuth } from "@/hooks/useAuth"
 import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
@@ -26,6 +27,7 @@ export function Roadmap() {
   const roadmapQuery = useRoadmap(slug)
   const { completedTopics, toggleTopic } = useLocalProgress(slug)
   const nextResourcesQuery = useNextWithResources(slug, Boolean(token))
+  const { bookmarkedIds, toggleBookmark } = useBookmarks()
   const nextTopics = nextResourcesQuery.data?.next ?? []
 
   const topics = roadmapQuery.data?.topics ?? []
@@ -144,7 +146,12 @@ export function Roadmap() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {topic.resources.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
+                  <ResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    saved={bookmarkedIds.has(resource.id)}
+                    onToggleSave={toggleBookmark}
+                  />
                 ))}
               </div>
             </div>

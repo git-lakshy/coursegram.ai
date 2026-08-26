@@ -153,6 +153,16 @@ export type ResourcesResponse = {
   resources: ResourceItem[]
 }
 
+export type BookmarkMutationResponse = {
+  resource_id: string
+  bookmarked: boolean
+}
+
+export type BookmarksResponse = {
+  count: number
+  resources: ResourceItem[]
+}
+
 export type NextTopicWithResources = {
   id: string
   name: string

@@ -1,16 +1,36 @@
-import { Clock3, Star } from "lucide-react"
+import { Bookmark, Clock3, Star } from "lucide-react"
 
 import type { ResourceItem } from "@/types"
 
-export function ResourceCard({ resource }: { resource: ResourceItem }) {
+type ResourceCardProps = {
+  resource: ResourceItem
+  saved?: boolean
+  onToggleSave?: (resourceId: string) => void
+}
+
+export function ResourceCard({ resource, saved, onToggleSave }: ResourceCardProps) {
   return (
     <a
       href={resource.url}
       target="_blank"
       rel="noreferrer"
-      className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 transition-colors hover:bg-background"
+      className="relative flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 transition-colors hover:bg-background"
     >
-      <div className="flex items-center justify-between gap-2">
+      {onToggleSave ? (
+        <button
+          type="button"
+          aria-label={saved ? "Remove bookmark" : "Add bookmark"}
+          className="absolute top-2 right-2 rounded p-1 text-ink-muted transition-colors hover:bg-background hover:text-accent-700"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onToggleSave(resource.id)
+          }}
+        >
+          <Bookmark className={`h-4 w-4 ${saved ? "fill-current" : ""}`} fill={saved ? "currentColor" : "none"} />
+        </button>
+      ) : null}
+      <div className={`flex items-center justify-between gap-2 ${onToggleSave ? "pr-7" : ""}`}>
         <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
           {resource.provider} · {resource.type}
         </span>

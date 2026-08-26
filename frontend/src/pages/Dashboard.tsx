@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/hooks/useAuth"
+import { useBookmarks } from "@/hooks/useBookmarks"
 import { useCourses } from "@/hooks/useCourses"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useNextWithResources } from "@/hooks/useResources"
@@ -55,6 +56,7 @@ export function Dashboard() {
 
   const coursesQuery = useCourses(nextTopic ?? "", 4)
   const matchedResourcesQuery = useNextWithResources(slug, Boolean(token))
+  const { bookmarkedIds, toggleBookmark } = useBookmarks()
   const matchedResources = (matchedResourcesQuery.data?.next ?? [])
     .flatMap((topic) => topic.resources)
     .slice(0, 4)
@@ -143,7 +145,11 @@ export function Dashboard() {
                 <div className="flex gap-2 overflow-x-auto">
                   {matchedResources.map((resource) => (
                     <div key={resource.id} className="w-56 shrink-0">
-                      <ResourceCard resource={resource} />
+                      <ResourceCard
+                        resource={resource}
+                        saved={bookmarkedIds.has(resource.id)}
+                        onToggleSave={toggleBookmark}
+                      />
                     </div>
                   ))}
                 </div>

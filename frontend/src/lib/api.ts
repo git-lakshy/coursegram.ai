@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "@/lib/config"
 import type {
+  BookmarksResponse,
+  BookmarkMutationResponse,
   ChatMessage,
   ChatResponse,
   CoursesResponse,
@@ -214,4 +216,25 @@ export function getNextWithResources(
 }
 
 export { ApiError }
+
+export function listBookmarks(token: string): Promise<BookmarksResponse> {
+  return request<BookmarksResponse>("/bookmarks", { token })
+}
+
+export function addBookmark(token: string, resourceId: string): Promise<BookmarkMutationResponse> {
+  return request<BookmarkMutationResponse>(`/bookmarks/${encodeURIComponent(resourceId)}`, {
+    method: "PUT",
+    token,
+  })
+}
+
+export function removeBookmark(
+  token: string,
+  resourceId: string,
+): Promise<BookmarkMutationResponse> {
+  return request<BookmarkMutationResponse>(`/bookmarks/${encodeURIComponent(resourceId)}`, {
+    method: "DELETE",
+    token,
+  })
+}
 

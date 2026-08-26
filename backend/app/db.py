@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS progress (
     PRIMARY KEY (email, slug, topic)
 );
 
+CREATE TABLE IF NOT EXISTS bookmarks (
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (email, resource_id)
+);
+
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,
     doc JSONB NOT NULL,
