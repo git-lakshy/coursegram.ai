@@ -11,6 +11,8 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Req
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from pydantic import BaseModel, Field
+
 from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
 from app.auth_security import firebase_enabled
@@ -35,6 +37,7 @@ from app.onboarding import (
     grade_quiz,
 )
 from app.profile_store import load_profile, save_profile
+from app.progress_store import get_progress, save_progress
 from app.resources_store import next_topics_with_resources, search_resources
 from app.roadmap_store import (
     RoadmapNotFound,
@@ -44,7 +47,16 @@ from app.roadmap_store import (
 )
 from app.user_store import get_or_create_firebase_user
 
-app = FastAPI(title="Coursegram API", version="1.0.0")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    await close_client()
+
+
+app = FastAPI(title="Coursegram API", version="1.0.0", lifespan=lifespan)
 
 ALLOWED_ORIGINS = [
     origin.strip()
@@ -127,11 +139,6 @@ async def unhandled_error_handler(request: Request, exc: Exception):
     )
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    await close_client()
-
-
 @app.get("/health")
 def health_check() -> dict:
     """Return a simple status payload used for uptime checks."""
@@ -196,6 +203,32 @@ def get_next_with_resources(
     if result is None:
         raise HTTPException(status_code=404, detail="Unknown roadmap slug")
     return result
+
+
+class ProgressUpdate(BaseModel):
+    completed: list[str] = Field(default_factory=list, max_length=500)
+
+
+@app.get("/progress/{slug}")
+def get_topic_progress(
+    slug: str, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Return the learner's completed topics for a roadmap."""
+    return {"slug": slug, "completed": get_progress(email, slug)}
+
+
+@app.put("/progress/{slug}")
+def put_topic_progress(
+    slug: str,
+    payload: ProgressUpdate,
+    background_tasks: BackgroundTasks,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Replace the learner's completed topics for a roadmap."""
+    completed = save_progress(email, slug, payload.completed)
+    if completed:
+        background_tasks.add_task(refresh_learner_context, email)
+    return {"slug": slug, "completed": completed}
 
 
 @app.get("/roadmaps")

@@ -25,6 +25,11 @@ export type HealthResponse = {
 
 export type ProgressState = Record<string, string[]>
 
+export type ProgressResponse = {
+  slug: string
+  completed: string[]
+}
+
 export type ItemStatus = "completed" | "current" | "upcoming"
 
 export type RoadmapStage = {

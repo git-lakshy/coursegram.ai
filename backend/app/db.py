@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS learner_context JSONB;
 
+CREATE TABLE IF NOT EXISTS progress (
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    slug TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (email, slug, topic)
+);
+
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,
     doc JSONB NOT NULL,

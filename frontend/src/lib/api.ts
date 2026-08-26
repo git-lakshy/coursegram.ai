@@ -8,6 +8,7 @@ import type {
   HealthResponse,
   LearnerProfile,
   MeResponse,
+  ProgressResponse,
   NextWithResourcesResponse,
   PlanResponse,
   QuizQuestion,
@@ -93,6 +94,22 @@ export function getRoadmapGraph(slug: string): Promise<RoadmapGraphResponse> {
 
 export function getMe(token: string): Promise<MeResponse> {
   return request<MeResponse>("/auth/me", { token })
+}
+
+export function getProgress(token: string, slug: string): Promise<ProgressResponse> {
+  return request<ProgressResponse>(`/progress/${encodeURIComponent(slug)}`, { token })
+}
+
+export function saveProgress(
+  token: string,
+  slug: string,
+  completed: string[],
+): Promise<ProgressResponse> {
+  return request<ProgressResponse>(`/progress/${encodeURIComponent(slug)}`, {
+    method: "PUT",
+    body: { completed },
+    token,
+  })
 }
 
 export function getProfile(token: string): Promise<LearnerProfile> {
