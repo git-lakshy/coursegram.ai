@@ -35,7 +35,7 @@ export type StreakResponse = {
   events_this_month: number
 }
 
-export type ItemStatus = "completed" | "current" | "upcoming"
+export type ItemStatus = "completed" | "current" | "skipped" | "upcoming"
 
 export type RoadmapStage = {
   id: string

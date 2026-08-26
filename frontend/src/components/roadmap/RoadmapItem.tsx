@@ -35,10 +35,17 @@ export function RoadmapItem({
           "text-xs",
           status === "completed" && "font-medium text-accent-700",
           status === "current" && "font-medium text-accent-600",
+          status === "skipped" && "italic text-ink-muted",
           status === "upcoming" && "text-ink-muted",
         )}
       >
-        {status === "completed" ? "Completed" : status === "current" ? "Next up" : "Upcoming"}
+        {status === "completed"
+          ? "Completed"
+          : status === "current"
+            ? "Next up"
+            : status === "skipped"
+              ? "Skipped"
+              : "Upcoming"}
       </span>
     </button>
   )

@@ -6,6 +6,7 @@ import type { ItemStatus } from "@/types"
 const STATUS_CONFIG: Record<ItemStatus, { label: string; variant: "accent" | "neutral" | "outline" }> = {
   completed: { label: "Completed", variant: "accent" },
   current: { label: "In progress", variant: "outline" },
+  skipped: { label: "Skipped", variant: "neutral" },
   upcoming: { label: "Upcoming", variant: "neutral" },
 }
 
