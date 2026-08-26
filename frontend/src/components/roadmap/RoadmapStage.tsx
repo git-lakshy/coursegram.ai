@@ -11,28 +11,37 @@ type RoadmapStageProps = {
   defaultOpen?: boolean
 }
 
-function getTopicStatus(
-  topic: string,
-  completedTopics: string[],
-  nextTopic: string | undefined,
-  skipped: Set<string>,
-): ItemStatus {
-  if (completedTopics.includes(topic)) return "completed"
-  if (topic === nextTopic) return "current"
-  if (skipped.has(topic)) return "skipped"
-  return "upcoming"
+function getTopicStatuses(topics: string[], completedTopics: string[]) {
+  const completedSet = new Set(completedTopics)
+  const statuses = new Map<string, ItemStatus>()
+  // A topic is skipped only when the learner completed something AFTER
+  // it while leaving it uncompleted. "Next up" is the first topic that
+  // is neither completed nor passed over.
+  let seenCompleted = false
+  const skipped = new Set<string>()
+  for (let index = topics.length - 1; index >= 0; index -= 1) {
+    const topic = topics[index]
+    if (completedSet.has(topic)) {
+      seenCompleted = true
+      statuses.set(topic, "completed")
+    } else if (seenCompleted) {
+      skipped.add(topic)
+      statuses.set(topic, "skipped")
+    } else {
+      statuses.set(topic, "upcoming")
+    }
+  }
+  const nextTopic = topics.find((topic) => statuses.get(topic) === "upcoming")
+  if (nextTopic !== undefined) {
+    statuses.set(nextTopic, "current")
+  }
+  return statuses
 }
 
 export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopic, defaultOpen }: RoadmapStageProps) {
+  const statuses = getTopicStatuses(stage.topics, completedTopics)
   const completedCount = stage.topics.filter((topic) => completedTopics.includes(topic)).length
   const percent = stage.topics.length > 0 ? Math.round((completedCount / stage.topics.length) * 100) : 0
-  const nextTopic = stage.topics.find((topic) => !completedTopics.includes(topic))
-  const nextIndex = nextTopic !== undefined ? stage.topics.indexOf(nextTopic) : -1
-  // Anything left uncompleted after the learner has moved past it counts
-  // as skipped, so the "Next up" marker can never appear stuck.
-  const skipped = new Set(
-    nextIndex >= 0 ? stage.topics.slice(nextIndex + 1).filter((topic) => !completedTopics.includes(topic)) : [],
-  )
 
   return (
     <AccordionItem defaultOpen={defaultOpen}>
@@ -62,7 +71,7 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
             <RoadmapItem
               key={topic}
               topic={topic}
-              status={getTopicStatus(topic, completedTopics, nextTopic, skipped)}
+              status={statuses.get(topic) ?? "upcoming"}
               onToggle={() => onToggleTopic(topic)}
             />
           ))}
