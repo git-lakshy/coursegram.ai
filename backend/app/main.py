@@ -4,6 +4,7 @@ import asyncio
 import time
 
 import app.config  # loads backend/.env before anything reads the environment
+import datetime
 import logging
 import os
 import httpx
@@ -21,7 +22,7 @@ from app.coursera_client import UpstreamError, fetch_courses
 from app.db import DatabaseNotConfigured
 from app.llm import LLMError, close_client
 from app.event_store import events_this_month, learning_streak, record_event
-from app.learner_context import build_learner_context
+from app.learner_context import build_learner_context, context_summary_for
 from app.models import LearnerProfile
 from app.onboarding import (
     GoalAnalysisResponse,
@@ -164,6 +165,54 @@ def get_courses(
     """Return a list of Coursera courses, optionally filtered by keyword."""
     courses = fetch_courses(limit=limit, topic=topic)
     return {"count": len(courses), "courses": courses}
+
+
+@app.post("/roadmaps/{slug}/regenerate")
+def regenerate_roadmap(
+    slug: str, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Regenerate the learner's personalized roadmap for a track.
+
+    Uses the learner's current knowledge (known topics plus completed
+    progress), their background goal, rolling context, and self assessed
+    level so the plan skips mastered material and reflects reality.
+    """
+    profile = load_profile(email)
+    if slug not in list_roadmap_slugs():
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+
+    completed = get_progress(email, slug)
+    known = list(dict.fromkeys((profile.known_topics or []) + completed))
+
+    goal_parts = [profile.background.strip(), context_summary_for(email)]
+    goal_text = ". ".join(part for part in goal_parts if part)
+
+    from app.onboarding import PlanRequest, generate_plan
+
+    try:
+        graph = load_roadmap_graph(slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    area_levels = {domain: profile.skill_level for domain in graph.get("domains", ["core"])}
+
+    plan = generate_plan(
+        PlanRequest(
+            slug=slug,
+            goal_text=goal_text,
+            area_levels=area_levels,
+            known_topics=known,
+        )
+    )
+    record_event(email, "plan_generated", {"slug": slug, "regenerated": True})
+
+    profile.personalized_roadmap = {
+        "slug": slug,
+        "summary": plan.summary,
+        "phases": [phase.model_dump() for phase in plan.phases],
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    saved = save_profile(email, profile)
+    return {"slug": slug, "personalized_roadmap": saved.personalized_roadmap}
 
 
 @app.get("/resources")
