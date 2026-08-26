@@ -37,8 +37,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     known_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
     onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
     personalized_roadmap JSONB,
+    learner_context JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS learner_context JSONB;
 
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,

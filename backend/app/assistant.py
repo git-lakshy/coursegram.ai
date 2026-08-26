@@ -3,7 +3,10 @@
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
+import json
+
 from app import llm
+from app.learner_context import context_summary_for, situation_for
 from app.roadmap_store import RoadmapNotFound, load_roadmap_topics
 
 MAX_HISTORY_MESSAGES = 8
@@ -25,19 +28,28 @@ class ChatResponse(BaseModel):
 
 
 def build_context(user_email: str, profile, topics: list[str]) -> str:
-    """Compose the system prompt from the learner profile and track."""
+    """Compose the system prompt from the rolling context and profile."""
+    rolling = context_summary_for(user_email)
+    situation = situation_for(user_email)
     target = profile.target_role_slug or "not set yet"
     known = ", ".join(profile.known_topics[:30]) or "unknown"
     topic_list = ", ".join(topics[:MAX_TOPIC_CONTEXT])
-    return (
+    parts = [
         "You are the Coursegram learning assistant. Be concise, practical, "
-        "and encouraging. The learner's profile: "
-        f"name {profile.display_name or user_email}, level {profile.skill_level}, "
-        f"target track {target}, already knows: {known}. "
-        f"Track topics: {topic_list}. "
-        "Answer questions about their learning path, suggest what to learn "
-        "next, and recommend concrete practice. Do not invent course URLs."
+        "and encouraging. Answer questions about the learner's path, "
+        "suggest what to learn next, and recommend concrete practice. "
+        "Do not invent course URLs."
+    ]
+    if rolling:
+        parts.append(f"Learner context note: {rolling}")
+    if situation:
+        parts.append(f"Current position: {json.dumps(situation)}")
+    parts.append(
+        f"Profile facts: name {profile.display_name or user_email}, "
+        f"level {profile.skill_level}, target track {target}, "
+        f"already knows: {known}. Track topics: {topic_list}."
     )
+    return " ".join(parts)
 
 
 async def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:

@@ -19,7 +19,7 @@ def load_profile(user_email: str) -> LearnerProfile:
         row = connection.execute(
             text(
                 "SELECT display_name, background, skill_level, target_role_slug, "
-                "known_topics, onboarding_complete, personalized_roadmap "
+                "known_topics, onboarding_complete, personalized_roadmap, learner_context "
                 "FROM profiles WHERE email = :email"
             ),
             {"email": user_email},
@@ -35,6 +35,7 @@ def load_profile(user_email: str) -> LearnerProfile:
             known_topics=row[4] or [],
             onboarding_complete=row[5],
             personalized_roadmap=row[6],
+            learner_context=row[7],
         )
     except ValidationError:
         return LearnerProfile()
@@ -54,15 +55,18 @@ def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
             text(
                 "INSERT INTO profiles (email, display_name, background, skill_level, "
                 "target_role_slug, known_topics, onboarding_complete, personalized_roadmap, "
-                "updated_at) VALUES (:email, :display_name, :background, :skill_level, "
-                ":target_role_slug, CAST(:known_topics AS jsonb), :onboarding_complete, "
-                "CAST(:personalized_roadmap AS jsonb), now()) "
+                "learner_context, updated_at) VALUES (:email, :display_name, :background, "
+                ":skill_level, :target_role_slug, CAST(:known_topics AS jsonb), "
+                ":onboarding_complete, CAST(:personalized_roadmap AS jsonb), "
+                "CAST(:learner_context AS jsonb), now()) "
                 "ON CONFLICT (email) DO UPDATE SET display_name = :display_name, "
                 "background = :background, skill_level = :skill_level, "
                 "target_role_slug = :target_role_slug, "
                 "known_topics = CAST(:known_topics AS jsonb), "
                 "onboarding_complete = :onboarding_complete, "
                 "personalized_roadmap = CAST(:personalized_roadmap AS jsonb), "
+                "learner_context = COALESCE(CAST(:learner_context AS jsonb), "
+                "profiles.learner_context), "
                 "updated_at = now()"
             ),
             {
@@ -75,6 +79,9 @@ def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
                 "onboarding_complete": profile.onboarding_complete,
                 "personalized_roadmap": json.dumps(profile.personalized_roadmap)
                 if profile.personalized_roadmap is not None
+                else None,
+                "learner_context": json.dumps(profile.learner_context)
+                if profile.learner_context is not None
                 else None,
             },
         )

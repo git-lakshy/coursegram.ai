@@ -7,7 +7,7 @@ import app.config  # loads backend/.env before anything reads the environment
 import logging
 import os
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -18,6 +18,7 @@ from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app.db import DatabaseNotConfigured
 from app.llm import LLMError, close_client
+from app.learner_context import build_learner_context
 from app.models import LearnerProfile
 from app.onboarding import (
     GoalAnalysisResponse,
@@ -137,6 +138,16 @@ def health_check() -> dict:
     return {"status": "ok"}
 
 
+def refresh_learner_context(user_email: str) -> None:
+    """Regenerate the rolling learner context, swallowing failures."""
+    try:
+        build_learner_context(user_email)
+    except Exception as error:
+        logging.getLogger("app.context").warning(
+            "Context refresh failed for %s: %s", user_email, error
+        )
+
+
 @app.get("/courses")
 def get_courses(
     topic: str = Query(default="", description="Optional keyword filter on the course name"),
@@ -225,7 +236,9 @@ def get_profile(user_email: str = Depends(get_current_user_email)) -> LearnerPro
 
 @app.put("/profile")
 def update_profile(
-    profile: LearnerProfile, user_email: str = Depends(get_current_user_email)
+    profile: LearnerProfile,
+    background_tasks: BackgroundTasks,
+    user_email: str = Depends(get_current_user_email),
 ) -> LearnerProfile:
     """Persist the authenticated learner's profile after validating the target role."""
     if (
@@ -236,7 +249,11 @@ def update_profile(
             status_code=422,
             detail="Unknown target role slug. Pick one from GET /roadmaps.",
         )
-    return save_profile(user_email, profile)
+    saved = save_profile(user_email, profile)
+    if saved.onboarding_complete:
+        # Refresh the rolling learner context without blocking the response.
+        background_tasks.add_task(refresh_learner_context, user_email)
+    return saved
 
 
 @app.get("/auth/me")
@@ -256,10 +273,14 @@ async def onboarding_quiz(
 
 @app.post("/onboarding/grade")
 def onboarding_grade(
-    payload: GradeRequest, _email: str = Depends(get_current_user_email)
+    payload: GradeRequest,
+    background_tasks: BackgroundTasks,
+    _email: str = Depends(get_current_user_email),
 ) -> GradeResponse:
     """Grade a placement quiz locally and recommend a skill level."""
-    return grade_quiz(payload)
+    response = grade_quiz(payload)
+    background_tasks.add_task(refresh_learner_context, _email)
+    return response
 
 
 @app.post("/assistant/chat")

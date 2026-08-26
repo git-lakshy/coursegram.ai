@@ -33,3 +33,7 @@ class LearnerProfile(BaseModel):
         default=None,
         description="LLM generated roadmap with phases and milestones for the target track",
     )
+    learner_context: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Rolling LLM generated summary of the learner, regenerated on profile changes",
+    )
