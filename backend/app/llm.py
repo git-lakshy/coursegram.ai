@@ -11,7 +11,7 @@ import httpx
 logger = logging.getLogger("app.llm")
 
 NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
-DEFAULT_MODEL = "qwen/qwen2.5-72b-instruct"
+DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 TIMEOUT_SECONDS = 90
 MAX_RETRIES = 3
 

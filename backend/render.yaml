@@ -13,7 +13,7 @@ services:
       - key: NVIDIA_API_KEY
         sync: false
       - key: LLM_MODEL
-        value: qwen/qwen2.5-72b-instruct
+        value: nvidia/nemotron-3-super-120b-a12b
       - key: DATABASE_URL
         sync: false
       - key: FIREBASE_PROJECT_ID
