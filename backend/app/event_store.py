@@ -23,18 +23,27 @@ VALID_TYPES = {
 
 
 def record_event(user_email: str, event_type: str, detail: dict | None = None) -> None:
-    """Append one event. Invalid types are ignored, never fatal."""
+    """Append one event. Never raises: analytics must not break core flows."""
     if event_type not in VALID_TYPES:
         return
-    engine = get_engine()
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                "INSERT INTO events (email, type, detail) "
-                "VALUES (:email, :type, CAST(:detail AS jsonb))"
-            ),
-            {"email": user_email, "type": event_type, "detail": json_dumps(detail or {})},
-        )
+    try:
+        engine = get_engine()
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO users (email) VALUES (:email) ON CONFLICT (email) DO NOTHING"
+                ),
+                {"email": user_email},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO events (email, type, detail) "
+                    "VALUES (:email, :type, CAST(:detail AS jsonb))"
+                ),
+                {"email": user_email, "type": event_type, "detail": json_dumps(detail or {})},
+            )
+    except Exception:
+        pass
 
 
 def json_dumps(value: dict) -> str:
