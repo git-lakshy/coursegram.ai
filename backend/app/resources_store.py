@@ -169,13 +169,25 @@ def search_resources(
         doc_topics = {str(tag).lower() for tag in doc.get("topics", [])}
         matched = sorted(doc_topics & topic_set)
         doc_keywords = {str(k).lower() for k in doc.get("keywords", [])}
-        if not matched:
-            keyword_hits = len(doc_keywords & topic_set)
-            if keyword_hits == 0 and _bm25_lite(query_tokens, resource_id) < 0.5:
-                continue
+        keyword_hits = sorted(doc_keywords & topic_set)
+        # A multi word query tag fully appearing in the resource name is a
+        # strong signal ("full stack" in "Full Stack Open") even without
+        # an exact tag match.
+        doc_name_tokens = set(_tokenize(str(doc.get("name", ""))))
+        phrase_hits = 0
+        for tag in normalized_topics:
+            tag_tokens = _tokenize(tag)
+            if len(tag_tokens) > 1 and all(token in doc_name_tokens for token in tag_tokens):
+                phrase_hits += 1
+        # Require a real tag, keyword, or phrase overlap; lexical-only
+        # matches on generic words produce irrelevant noise.
+        if not matched and not keyword_hits and phrase_hits == 0:
+            continue
         coverage = len(matched) / len(topic_set) if topic_set else 0.0
         score = (
             3.0 * coverage
+            + 0.5 * len(keyword_hits)
+            + 1.0 * phrase_hits
             + _bm25_lite(query_tokens, resource_id)
             + 0.8 * _level_match(str(doc.get("level", "beginner")), level)
             + 0.5 * _rating_norm(float(doc.get("rating", 0)))
@@ -209,7 +221,7 @@ def search_resources(
                 "duration_hours": doc.get("duration_hours", 0),
                 "rating": doc.get("rating", 0),
                 "description": doc.get("description", ""),
-                "matched_topics": matched,
+                "matched_topics": sorted(set(matched + keyword_hits)),
                 "score": round(adjusted, 3),
             }
         )
@@ -248,6 +260,7 @@ def next_topics_with_resources(
     mastered = {str(topic).lower() for topic in profile.known_topics}
     ready = next_topics(graph, mastered, limit=limit_topics)
     level = str(profile.skill_level or "beginner")
+    track_title = str(graph.get("title", slug))
     return {
         "slug": slug,
         "next": [
@@ -258,7 +271,9 @@ def next_topics_with_resources(
                 "level": node["level"],
                 "keywords": node.get("keywords", []),
                 "resources": search_resources(
-                    topics=[node["name"]] + node.get("keywords", []),
+                    topics=[node["name"]]
+                    + node.get("keywords", [])
+                    + [node["domain"], track_title],
                     level=level,
                     limit=resources_per_topic,
                 ),
