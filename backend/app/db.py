@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     personalized_roadmap JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS resources (
+    id TEXT PRIMARY KEY,
+    doc JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 """
 
 

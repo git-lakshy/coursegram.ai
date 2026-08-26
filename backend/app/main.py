@@ -34,6 +34,7 @@ from app.onboarding import (
     grade_quiz,
 )
 from app.profile_store import load_profile, save_profile
+from app.resources_store import next_topics_with_resources, search_resources
 from app.roadmap_store import (
     RoadmapNotFound,
     list_roadmap_slugs,
@@ -144,6 +145,46 @@ def get_courses(
     """Return a list of Coursera courses, optionally filtered by keyword."""
     courses = fetch_courses(limit=limit, topic=topic)
     return {"count": len(courses), "courses": courses}
+
+
+@app.get("/resources")
+def get_resources(
+    topics: str = Query(description="Comma separated topic tags to match"),
+    level: str = Query(default="beginner"),
+    free: bool | None = Query(default=None),
+    type: str = Query(default="", description="Comma separated resource types"),
+    limit: int = Query(default=6, ge=1, le=20),
+) -> dict:
+    """Rank curated resources for the given topics and learner level."""
+    topic_list = [item.strip() for item in topics.split(",") if item.strip()]
+    type_list = [item.strip() for item in type.split(",") if item.strip()] or None
+    results = search_resources(
+        topics=topic_list,
+        level=level,
+        free=free,
+        resource_types=type_list,
+        limit=limit,
+    )
+    return {"count": len(results), "resources": results}
+
+
+@app.get("/roadmaps/{slug}/next-with-resources")
+def get_next_with_resources(
+    slug: str,
+    limit_topics: int = Query(default=3, ge=1, le=10),
+    resources_per_topic: int = Query(default=3, ge=1, le=10),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Return the learner's next topics, each with matched resources."""
+    result = next_topics_with_resources(
+        email,
+        slug,
+        limit_topics=limit_topics,
+        resources_per_topic=resources_per_topic,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    return result
 
 
 @app.get("/roadmaps")

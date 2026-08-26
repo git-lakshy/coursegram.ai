@@ -24,7 +24,7 @@ export function SiteNav() {
   const { token, isLoading } = useAuth()
 
   return (
-    <header className="border-b border-border/60 bg-surface/85 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-border/60 bg-surface/85 backdrop-blur">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
         <Link to="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-primary text-surface">
