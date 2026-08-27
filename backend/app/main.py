@@ -413,6 +413,22 @@ def update_profile(
     return saved
 
 
+@app.delete("/profile")
+def delete_profile(email: str = Depends(get_current_user_email)) -> dict:
+    """Delete the learner's profile, progress, bookmarks and events."""
+    from sqlalchemy import text
+
+    from app.db import get_engine
+
+    engine = get_engine()
+    with engine.begin() as connection:
+        connection.execute(text("DELETE FROM progress WHERE email = :email"), {"email": email})
+        connection.execute(text("DELETE FROM bookmarks WHERE email = :email"), {"email": email})
+        connection.execute(text("DELETE FROM events WHERE email = :email"), {"email": email})
+        connection.execute(text("DELETE FROM profiles WHERE email = :email"), {"email": email})
+    return {"deleted": True}
+
+
 @app.get("/auth/me")
 def me(email: str = Depends(get_current_user_email)) -> dict:
     """Return the authenticated identity, ensuring a user row exists."""

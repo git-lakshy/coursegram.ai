@@ -31,11 +31,12 @@ function filterChoiceDupes(topics: string[], choiceGroups: ChoiceGroup[] | undef
     // We don't have id mapping here, so check by name lower against options lower
     let grp: string | undefined
     for (const g of choiceGroups) {
-      if (g.options.some((o) => o.toLowerCase() === t.toLowerCase())) {
+      const names = (g as any).option_names as string[] | undefined
+      const allOpts = names && names.length ? [...g.options, ...names] : g.options
+      if (allOpts.some((o) => o.toLowerCase() === t.toLowerCase())) {
         grp = g.id
         break
       }
-      // Also handle C# / C++ id mapping: options are ids like "c-2", but topics are names like "C++"
       if (g.header_id && t.toLowerCase() === g.header_id.toLowerCase()) grp = g.id
     }
     if (grp) {

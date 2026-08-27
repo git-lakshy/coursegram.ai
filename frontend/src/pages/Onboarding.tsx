@@ -291,7 +291,7 @@ export function Onboarding() {
 
         {step === 2 ? (
           <div>
-            <h2 className="text-sm font-semibold text-ink-primary">Placement quiz</h2>
+            <h2 className="text-sm font-semibold text-ink-primary">Analysis quiz</h2>
             <p className="mb-3 mt-0.5 text-sm text-ink-secondary">
               {questions.length} questions on {slug} fundamentals. Skip any you are unsure about.
             </p>
