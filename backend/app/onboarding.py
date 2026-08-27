@@ -153,14 +153,29 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
 
     try:
-        topics = load_roadmap_topics(payload.slug)
+        from app.roadmap_store import load_roadmap_graph
+
+        graph = load_roadmap_graph(payload.slug)
+        topics = [n["name"] for n in graph["nodes"]]
+        choice_groups = graph.get("choice_groups", [])
     except RoadmapNotFound:
         raise HTTPException(status_code=404, detail="Unknown roadmap slug")
 
     known = set(topic.lower() for topic in payload.known_topics)
-    remaining = [topic for topic in topics if topic.lower() not in known]
+    remaining = [t for t in topics if t.lower() not in known]
+    ref_list = "; ".join(remaining[:80])
+    if len(remaining) > 80:
+        ref_list += f"; ... and {len(remaining) - 80} more"
     levels = ", ".join(f"{area}: {level}" for area, level in payload.area_levels.items()) or "unknown"
     goal = payload.goal_text or f"master {payload.slug}"
+    choice_hint = ""
+    if choice_groups:
+        id_to_name = {n["id"]: n["name"] for n in graph["nodes"]}
+        parts = []
+        for grp in choice_groups:
+            names = [id_to_name.get(o, o) for o in grp.get("options", [])]
+            parts.append(f"{grp.get('prompt', 'Pick one')} -> {', '.join(names)} (choose ONE only)")
+        choice_hint = "Choice groups (pick exactly one per group, never list multiple):\n" + "\n".join(parts) + "\n"
 
     prompt = (
         "You are the Coursegram path generator. Build a personalized "
@@ -168,14 +183,16 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
         f"Track: {payload.slug}. Self rated proficiency per skill area: {levels}. "
         f"Topics the learner already knows (skip these): "
         f"{', '.join(payload.known_topics) if payload.known_topics else 'none'}.\n"
-        "Use this ordered reference topic list from the track as the source of "
+        + choice_hint
+        + "Use this ordered reference topic list from the track as the source of "
         "truth, taking topics verbatim where possible:\n"
-        f"{'; '.join(remaining[:50])}\n\n"
+        f"{ref_list}\n\n"
         "Produce 3 to 5 sequential phases. Each phase has a short name, one "
         "concrete milestone the learner can demonstrate, and its topics taken "
-        "from the reference list. If the learner rated an area intermediate or "
-        "advanced, start that area at the next difficulty tier and include "
-        "more advanced topics. Respond with JSON only: "
+        "from the reference list. For choice groups, include at most ONE option "
+        "per group. If the learner rated an area intermediate or advanced, "
+        "start that area at the next difficulty tier. Every topic must be verbatim "
+        "from the reference list. Respond with JSON only: "
         '{"summary": "one sentence describing the path", "phases": '
         '[{"name": "...", "milestone": "...", "topics": ["..."]}]}'
     )
@@ -197,6 +214,30 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
     ]
     if not phases:
         raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
+    # Enforce at most one option per choice group and drop hallucinated topics
+    if choice_groups:
+        name_to_id = {n["name"].lower(): n["id"] for n in graph["nodes"]}
+        opt_to_group = {opt: grp["id"] for grp in choice_groups for opt in grp.get("options", [])}
+        valid_lower = {t.lower() for t in remaining}
+        seen_group: dict[str, str] = {}
+        filtered: list[PlanPhase] = []
+        for phase in phases:
+            kept: list[str] = []
+            for topic in phase.topics:
+                tid = name_to_id.get(topic.lower())
+                grp = opt_to_group.get(tid or "")
+                if grp and grp in seen_group:
+                    continue
+                if grp:
+                    seen_group[grp] = topic
+                if topic.lower() not in valid_lower and tid is None:
+                    continue
+                kept.append(topic)
+            if kept:
+                filtered.append(PlanPhase(name=phase.name, milestone=phase.milestone, topics=kept))
+        phases = filtered
+        if not phases:
+            raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
     return PlanResponse(
         slug=payload.slug,
         summary=str(data.get("summary", "")).strip(),

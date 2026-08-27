@@ -14,9 +14,40 @@ import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useBookmarks } from "@/hooks/useBookmarks"
 import { useAuth } from "@/hooks/useAuth"
 import { useNextWithResources } from "@/hooks/useResources"
-import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
+import { useRoadmap, useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
-import type { RoadmapStage as RoadmapStageType } from "@/types"
+import type { ChoiceGroup, RoadmapStage as RoadmapStageType } from "@/types"
+
+function filterChoiceDupes(topics: string[], choiceGroups: ChoiceGroup[] | undefined): string[] {
+  if (!choiceGroups?.length) return topics
+  const optToGroup = new Map<string, string>()
+  for (const g of choiceGroups) for (const o of g.options) optToGroup.set(o.toLowerCase(), g.id)
+  // Map topic name -> id is not available here; use lower name as proxy
+  // For personalized phases, topics are names like "Java", "C++" - match by lower name
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const t of topics) {
+    // Find if this topic belongs to a choice group by checking if any option's name matches (case-insensitive)
+    // We don't have id mapping here, so check by name lower against options lower
+    let grp: string | undefined
+    for (const g of choiceGroups) {
+      if (g.options.some((o) => o.toLowerCase() === t.toLowerCase())) {
+        grp = g.id
+        break
+      }
+      // Also handle C# / C++ id mapping: options are ids like "c-2", but topics are names like "C++"
+      if (g.header_id && t.toLowerCase() === g.header_id.toLowerCase()) grp = g.id
+    }
+    if (grp) {
+      if (seen.has(grp)) continue
+      seen.add(grp)
+    }
+    // Drop the header prompt itself if it appears as a topic ("Pick a Language")
+    if (/^\s*(pick|choose|select)\b/i.test(t)) continue
+    out.push(t)
+  }
+  return out
+}
 
 export function Roadmap() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
@@ -31,6 +62,8 @@ export function Roadmap() {
   const nextTopics = nextResourcesQuery.data?.next ?? []
 
   const topics = roadmapQuery.data?.topics ?? []
+  const graphQuery = useRoadmapGraph(slug)
+  const choiceGroups = graphQuery.data?.choice_groups ?? []
   const personalized = profile?.personalized_roadmap
   const usePersonalized =
     personalized !== null && personalized !== undefined && personalized.slug === slug
@@ -38,10 +71,10 @@ export function Roadmap() {
     ? personalized.phases.map((phase, index) => ({
         id: `${slug}-phase-${index + 1}`,
         name: phase.name,
-        topics: phase.topics,
+        topics: filterChoiceDupes(phase.topics, choiceGroups),
         milestone: phase.milestone,
       }))
-    : groupTopicsIntoStages(slug ?? "roadmap", topics)
+    : groupTopicsIntoStages(slug ?? "roadmap", filterChoiceDupes(topics, choiceGroups))
 
   if (slug === undefined || slug === null || slug === "") {
     return (
@@ -105,6 +138,7 @@ export function Roadmap() {
               stage={stage}
               stageNumber={index + 1}
               completedTopics={completedTopics}
+              choiceGroups={choiceGroups}
               onToggleTopic={toggleTopic}
               defaultOpen={index === 0}
             />

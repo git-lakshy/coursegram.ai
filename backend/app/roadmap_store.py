@@ -45,8 +45,14 @@ import app.config  # loads backend/.env before anything reads the environment
 from app.db import DatabaseNotConfigured, get_engine
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+CHOICE_HEADER_RE = re.compile(r"^\s*(pick|choose|select)\b", re.IGNORECASE)
+LANGUAGE_NAMES = {
+    "python", "java", "javascript", "typescript", "go", "c", "c#", "c++", "cpp", "rust", "ruby", "php", "swift",
+    "kotlin", "scala", "dart", "r", "matlab", "perl", "haskell", "elixir", "clojure", "erlang", "lua",
+}
+SLASH_RE = re.compile(r"\s+/\s+")
 
-GRAPH_VERSION = 2
+GRAPH_VERSION = 3
 DEFAULT_DOMAIN = "core"
 DEFAULT_LEVEL = "beginner"
 KNOWN_LEVELS = {"beginner", "intermediate", "advanced"}
@@ -75,6 +81,76 @@ def _query_one(statement: str, **params):
             return connection.execute(text(statement), params).fetchone()
     except Exception as error:
         raise DatabaseNotConfigured(str(error)) from error
+
+
+def _detect_choice_groups(nodes: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Tag nodes that are alternatives under a Pick/Choose header."""
+    choice_groups: list[dict] = []
+    idx = 0
+    while idx < len(nodes):
+        name = str(nodes[idx].get("name", "")).strip()
+        if CHOICE_HEADER_RE.match(name):
+            header_id = str(nodes[idx].get("id", "")).strip()
+            header_name = str(nodes[idx].get("name", "")).strip()
+            is_lang = "language" in header_name.lower()
+            options: list[str] = []
+            if is_lang:
+                window_start = max(0, idx - 8)
+                window_end = min(len(nodes), idx + 9)
+                for w in range(window_start, window_end):
+                    if w == idx:
+                        continue
+                    cand = nodes[w]
+                    if cand.get("prerequisites"):
+                        continue
+                    cand_name = str(cand.get("name", "")).strip()
+                    if cand_name.lower() in LANGUAGE_NAMES:
+                        cid = str(cand.get("id", "")).strip()
+                        if cid not in options:
+                            options.append(cid)
+                look = idx + 1
+                while look < len(nodes) and str(nodes[look].get("name", "")).strip().lower() in LANGUAGE_NAMES:
+                    look += 1
+            else:
+                look = idx + 1
+                while look < len(nodes):
+                    cand = nodes[look]
+                    if cand.get("prerequisites"):
+                        break
+                    cand_name = str(cand.get("name", "")).strip()
+                    if not cand_name or len(cand_name) > 40 or CHOICE_HEADER_RE.match(cand_name):
+                        break
+                    if len(cand_name.split()) > 3:
+                        break
+                    options.append(str(cand.get("id", "")).strip())
+                    look += 1
+            if len(options) >= 2:
+                group_id = f"choice-{header_id}"
+                nodes[idx]["choice_group"] = group_id
+                option_names: list[str] = []
+                for opt_id in options:
+                    for n in nodes:
+                        if n.get("id") == opt_id:
+                            n["choice_group"] = group_id
+                            option_names.append(str(n.get("name", opt_id)))
+                            break
+                choice_groups.append(
+                    {
+                        "id": group_id,
+                        "prompt": header_name,
+                        "options": options,
+                        "option_names": option_names,
+                        "header_id": header_id,
+                    }
+                )
+                idx = look
+                continue
+            else:
+                # Header with <2 options is just an instruction, drop it
+                nodes.pop(idx)
+                continue
+        idx += 1
+    return nodes, choice_groups
 
 
 def _topological_sort(nodes: list[dict]) -> list[dict]:
@@ -120,17 +196,37 @@ def _normalize_graph(slug: str, raw: dict) -> dict:
             for item in raw_node.get("related", [])
             if isinstance(item, dict) and item.get("id")
         ]
-        nodes.append(
-            {
-                "id": node_id,
-                "name": str(raw_node.get("name", node_id)),
-                "domain": str(raw_node.get("domain", DEFAULT_DOMAIN)),
-                "level": level,
-                "prerequisites": prerequisites,
-                "related": related,
-                "keywords": [str(k) for k in raw_node.get("keywords", [])],
-            }
-        )
+        entry: dict = {
+            "id": node_id,
+            "name": str(raw_node.get("name", node_id)),
+            "domain": str(raw_node.get("domain", DEFAULT_DOMAIN)),
+            "level": level,
+            "prerequisites": prerequisites,
+            "related": related,
+            "keywords": [str(k) for k in raw_node.get("keywords", [])],
+        }
+        if raw_node.get("choice_group"):
+            entry["choice_group"] = str(raw_node["choice_group"])
+        nodes.append(entry)
+
+    # Fix duplicate IDs caused by sanitization (e.g. "C#", "C++", "C" all -> "c")
+    seen: set[str] = set()
+    for node in nodes:
+        orig = node["id"]
+        if orig in seen:
+            suffix = 2
+            new_id = f"{orig}-{suffix}"
+            while new_id in seen:
+                suffix += 1
+                new_id = f"{orig}-{suffix}"
+            node["id"] = new_id
+        seen.add(node["id"])
+
+    existing_groups = raw.get("choice_groups")
+    if isinstance(existing_groups, list) and existing_groups:
+        choice_groups: list[dict] = existing_groups
+    else:
+        nodes, choice_groups = _detect_choice_groups(nodes)
 
     needs_sort = any(
         nodes[i + 1]["prerequisites"] for i in range(len(nodes) - 1)
@@ -145,13 +241,16 @@ def _normalize_graph(slug: str, raw: dict) -> dict:
         if node["domain"] not in domains:
             domains.append(node["domain"])
 
-    return {
+    result: dict = {
         "slug": slug,
         "title": str(raw.get("title") or slug.replace("-", " ").title()),
         "version": GRAPH_VERSION,
         "domains": domains,
         "nodes": nodes,
     }
+    if choice_groups:
+        result["choice_groups"] = choice_groups
+    return result
 
 
 def list_roadmap_slugs() -> list[str]:
@@ -206,16 +305,41 @@ def related_topics(graph: dict, topic_id: str) -> list[dict]:
 
 
 def next_topics(graph: dict, mastered_ids: set[str], limit: int = 5) -> list[dict]:
-    """Return the next topics a learner can take, prerequisites satisfied.
+    """Return the next topics, respecting prerequisites and choice groups."""
+    mastered_lower = {str(m).lower() for m in mastered_ids}
+    satisfied_groups: set[str] = set()
+    first_of_group: dict[str, str] = {}
+    for grp in graph.get("choice_groups", []):
+        opts: list[str] = grp.get("options", [])
+        opt_names: list[str] = grp.get("option_names", [])
+        if opts:
+            first_of_group[grp["id"]] = opts[0]
+        # Check both ids and display names (for C# etc where id "c" != name "c#")
+        if any(
+            str(o).lower() in mastered_lower for o in opts
+        ) or any(str(n).lower() in mastered_lower for n in opt_names):
+            satisfied_groups.add(grp["id"])
+            hdr = grp.get("header_id")
+            if hdr:
+                satisfied_groups.add(hdr)
 
-    Walks nodes in topological order, skipping mastered topics and topics
-    whose prerequisites are not yet mastered. This is the primitive the
-    adaptive roadmap and future ML ranking build on.
-    """
-    ready = [
-        node
-        for node in graph.get("nodes", [])
-        if node["id"] not in mastered_ids
-        and all(dep in mastered_ids for dep in node["prerequisites"])
-    ]
-    return ready[:limit]
+    ready: list[dict] = []
+    for node in graph.get("nodes", []):
+        nid: str = node.get("id", "")
+        nname_lower = str(node.get("name", "")).lower()
+        if nid.lower() in mastered_lower or nname_lower in mastered_lower:
+            continue
+        if any(nid == g.get("header_id") for g in graph.get("choice_groups", [])):
+            continue
+        cg: str | None = node.get("choice_group")
+        if cg:
+            if cg in satisfied_groups:
+                continue
+            if first_of_group.get(cg) != nid:
+                continue
+        if not all(dep.lower() in mastered_lower or dep in satisfied_groups for dep in node.get("prerequisites", [])):
+            continue
+        ready.append(node)
+        if len(ready) >= limit:
+            break
+    return ready

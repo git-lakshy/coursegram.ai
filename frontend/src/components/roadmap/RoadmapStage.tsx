@@ -1,7 +1,8 @@
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
+import { Select } from "@/components/ui/select"
 import { RoadmapItem } from "@/components/roadmap/RoadmapItem"
-import type { ItemStatus, RoadmapStage as RoadmapStageType } from "@/types"
+import type { ChoiceGroup, ItemStatus, RoadmapStage as RoadmapStageType } from "@/types"
 
 type RoadmapStageProps = {
   stage: RoadmapStageType
@@ -9,6 +10,7 @@ type RoadmapStageProps = {
   completedTopics: string[]
   onToggleTopic: (topic: string) => void
   defaultOpen?: boolean
+  choiceGroups?: ChoiceGroup[]
 }
 
 function getTopicStatuses(topics: string[], completedTopics: string[]) {
@@ -38,10 +40,19 @@ function getTopicStatuses(topics: string[], completedTopics: string[]) {
   return statuses
 }
 
-export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopic, defaultOpen }: RoadmapStageProps) {
+export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopic, defaultOpen, choiceGroups = [] }: RoadmapStageProps & { choiceGroups?: ChoiceGroup[] }) {
   const statuses = getTopicStatuses(stage.topics, completedTopics)
   const completedCount = stage.topics.filter((topic) => completedTopics.includes(topic)).length
   const percent = stage.topics.length > 0 ? Math.round((completedCount / stage.topics.length) * 100) : 0
+
+  // Find choice group for a topic (check both ids and display names)
+  const getChoiceGroup = (topic: string): ChoiceGroup | undefined => {
+    const lower = topic.toLowerCase()
+    return choiceGroups.find((g) => {
+      const opts = (g as any).option_names ? (g as any).option_names.map((n: string) => n.toLowerCase()) : g.options.map((o) => o.toLowerCase())
+      return opts.includes(lower) || g.options.some((o) => o.toLowerCase() === lower)
+    })
+  }
 
   return (
     <AccordionItem defaultOpen={defaultOpen}>
@@ -66,15 +77,47 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
         </div>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="space-y-0.5 pl-9">
-          {stage.topics.map((topic) => (
-            <RoadmapItem
-              key={topic}
-              topic={topic}
-              status={statuses.get(topic) ?? "upcoming"}
-              onToggle={() => onToggleTopic(topic)}
-            />
-          ))}
+        <div className="space-y-1 pl-9">
+          {stage.topics.map((topic) => {
+            const group = getChoiceGroup(topic)
+            const status = statuses.get(topic) ?? "upcoming"
+            if (group) {
+              const isCompleted = completedTopics.includes(topic)
+              const displayOptions: string[] = (group as any).option_names || group.options
+              return (
+                <div key={topic} className="rounded-md border border-accent-200 bg-accent-50/40 p-2">
+                  <p className="mb-1.5 text-xs font-medium text-accent-800">{group.prompt} — choose one</p>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={topic}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        if (next !== topic) {
+                          if (isCompleted) onToggleTopic(topic)
+                          onToggleTopic(next)
+                        }
+                      }}
+                      className="flex-1 text-sm"
+                    >
+                      {displayOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </Select>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        isCompleted ? "bg-accent-600 text-white" : "bg-white text-ink-muted border border-border"
+                      }`}
+                    >
+                      {isCompleted ? "Selected" : "Choose"}
+                    </span>
+                  </div>
+                </div>
+              )
+            }
+            return <RoadmapItem key={topic} topic={topic} status={status} onToggle={() => onToggleTopic(topic)} />
+          })}
         </div>
       </AccordionContent>
     </AccordionItem>

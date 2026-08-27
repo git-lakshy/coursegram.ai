@@ -59,12 +59,22 @@ export type GraphNode = {
   id: string
   name: string
   prerequisites: GraphPrerequisite[]
+  choice_group?: string
+}
+
+export type ChoiceGroup = {
+  id: string
+  prompt: string
+  options: string[]
+  option_names?: string[]
+  header_id: string
 }
 
 export type RoadmapGraphResponse = {
   slug: string
   node_count: number
   nodes: GraphNode[]
+  choice_groups?: ChoiceGroup[]
 }
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced"
