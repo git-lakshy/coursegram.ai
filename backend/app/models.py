@@ -17,6 +17,9 @@ class LearnerProfile(BaseModel):
     skill_level: Literal["beginner", "intermediate", "advanced"] = Field(
         default="beginner", description="Self assessed overall skill level"
     )
+    plan: Literal["free", "paid"] = Field(
+        default="free", description="Subscription plan for the account"
+    )
     target_role_slug: Optional[str] = Field(
         default=None,
         description="Slug of the roadmap track the learner is aiming for",

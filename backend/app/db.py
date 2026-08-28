@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     display_name TEXT NOT NULL DEFAULT '',
     background TEXT NOT NULL DEFAULT '',
     skill_level TEXT NOT NULL DEFAULT 'beginner',
+    plan TEXT NOT NULL DEFAULT 'free',
     target_role_slug TEXT,
     known_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
     onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS learner_context JSONB;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 
 CREATE TABLE IF NOT EXISTS progress (
     email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,

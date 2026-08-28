@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from app.assistant import ChatRequest, ChatResponse, chat
 from app.auth import get_current_user_email
@@ -411,6 +412,24 @@ def update_profile(
         # Refresh the rolling learner context without blocking the response.
         background_tasks.add_task(refresh_learner_context, user_email)
     return saved
+
+
+class PlanUpdate(BaseModel):
+    plan: Literal["free", "paid"]
+
+
+@app.post("/plan")
+def update_plan(
+    payload: PlanUpdate, email: str = Depends(get_current_user_email)
+) -> LearnerProfile:
+    """Switch the learner between the free and paid plan."""
+    profile = load_profile(email)
+    previous = profile.plan
+    if previous != payload.plan:
+        profile.plan = payload.plan
+        profile = save_profile(email, profile)
+        record_event(email, "plan_changed", {"from": previous, "to": payload.plan})
+    return profile
 
 
 @app.delete("/profile")

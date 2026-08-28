@@ -18,7 +18,7 @@ def load_profile(user_email: str) -> LearnerProfile:
     with engine.connect() as connection:
         row = connection.execute(
             text(
-                "SELECT display_name, background, skill_level, target_role_slug, "
+                "SELECT display_name, background, skill_level, plan, target_role_slug, "
                 "known_topics, onboarding_complete, personalized_roadmap, learner_context "
                 "FROM profiles WHERE email = :email"
             ),
@@ -31,11 +31,12 @@ def load_profile(user_email: str) -> LearnerProfile:
             display_name=row[0],
             background=row[1],
             skill_level=row[2],
-            target_role_slug=row[3],
-            known_topics=row[4] or [],
-            onboarding_complete=row[5],
-            personalized_roadmap=row[6],
-            learner_context=row[7],
+            plan=row[3] if row[3] in ("free", "paid") else "free",
+            target_role_slug=row[4],
+            known_topics=row[5] or [],
+            onboarding_complete=row[6],
+            personalized_roadmap=row[7],
+            learner_context=row[8],
         )
     except ValidationError:
         return LearnerProfile()
@@ -53,14 +54,14 @@ def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
         )
         connection.execute(
             text(
-                "INSERT INTO profiles (email, display_name, background, skill_level, "
+                "INSERT INTO profiles (email, display_name, background, skill_level, plan, "
                 "target_role_slug, known_topics, onboarding_complete, personalized_roadmap, "
                 "learner_context, updated_at) VALUES (:email, :display_name, :background, "
-                ":skill_level, :target_role_slug, CAST(:known_topics AS jsonb), "
+                ":skill_level, :plan, :target_role_slug, CAST(:known_topics AS jsonb), "
                 ":onboarding_complete, CAST(:personalized_roadmap AS jsonb), "
                 "CAST(:learner_context AS jsonb), now()) "
                 "ON CONFLICT (email) DO UPDATE SET display_name = :display_name, "
-                "background = :background, skill_level = :skill_level, "
+                "background = :background, skill_level = :skill_level, plan = :plan, "
                 "target_role_slug = :target_role_slug, "
                 "known_topics = CAST(:known_topics AS jsonb), "
                 "onboarding_complete = :onboarding_complete, "
@@ -74,6 +75,7 @@ def save_profile(user_email: str, profile: LearnerProfile) -> LearnerProfile:
                 "display_name": profile.display_name,
                 "background": profile.background,
                 "skill_level": profile.skill_level,
+                "plan": profile.plan,
                 "target_role_slug": profile.target_role_slug,
                 "known_topics": json.dumps(profile.known_topics),
                 "onboarding_complete": profile.onboarding_complete,
