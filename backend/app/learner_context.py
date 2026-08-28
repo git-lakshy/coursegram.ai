@@ -35,7 +35,7 @@ def _situation_snapshot(profile, graph) -> dict:
     }
 
 
-def build_learner_context(user_email: str) -> dict | None:
+async def build_learner_context(user_email: str) -> dict | None:
     """Generate and persist a rolling summary of the learner.
 
     Returns the new context dict, or None when there is nothing to
@@ -66,7 +66,7 @@ def build_learner_context(user_email: str) -> dict | None:
         f"Current situation: {json.dumps(snapshot)}"
     )
     try:
-        raw = llm.chat_completion(
+        raw = await llm.chat_completion(
             [{"role": "user", "content": prompt}],
             json_mode=True,
             max_tokens=400,

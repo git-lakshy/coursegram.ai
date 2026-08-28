@@ -1,9 +1,15 @@
 """Tests for the rolling learner context generator."""
 
+import asyncio
+
 import pytest
 
 import app.learner_context as learner_context
 from app.models import LearnerProfile
+
+
+def run(coro):
+    return asyncio.run(coro)
 
 
 @pytest.fixture()
@@ -27,7 +33,7 @@ def grounded(monkeypatch):
         saved[email] = profile
         return profile
 
-    def fake_llm(messages, **kwargs):
+    async def fake_llm(messages, **kwargs):
         return '{"summary": "Beginner aiming for Python, ready to start Variables."}'
 
     monkeypatch.setattr(learner_context, "load_profile", fake_load_profile)
@@ -39,7 +45,7 @@ def grounded(monkeypatch):
 
 
 def test_build_learner_context_persists_summary(grounded):
-    context = learner_context.build_learner_context("a@b.com")
+    context = run(learner_context.build_learner_context("a@b.com"))
     assert context is not None
     assert "Variables" in context["summary"]
     assert context["snapshot"]["next_topics"] == ["Variables"]
@@ -53,15 +59,15 @@ def test_context_skips_when_no_target_role(grounded, monkeypatch):
         "load_profile",
         lambda email: LearnerProfile(),
     )
-    assert learner_context.build_learner_context("a@b.com") is None
+    assert run(learner_context.build_learner_context("a@b.com")) is None
 
 
 def test_context_returns_none_when_llm_fails(grounded, monkeypatch):
-    def boom(messages, **kwargs):
+    async def boom(messages, **kwargs):
         raise learner_context.llm.LLMError("down")
 
     monkeypatch.setattr(learner_context.llm, "chat_completion", boom)
-    assert learner_context.build_learner_context("a@b.com") is None
+    assert run(learner_context.build_learner_context("a@b.com")) is None
 
 
 def test_situation_falls_back_to_empty(grounded):

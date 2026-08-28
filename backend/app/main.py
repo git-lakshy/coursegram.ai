@@ -148,10 +148,10 @@ def health_check() -> dict:
     return {"status": "ok"}
 
 
-def refresh_learner_context(user_email: str) -> None:
+async def refresh_learner_context(user_email: str) -> None:
     """Regenerate the rolling learner context, swallowing failures."""
     try:
-        build_learner_context(user_email)
+        await build_learner_context(user_email)
     except Exception as error:
         logging.getLogger("app.context").warning(
             "Context refresh failed for %s: %s", user_email, error
