@@ -86,7 +86,7 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
               const displayOptions: string[] = (group as any).option_names || group.options
               return (
                 <div key={topic} className="rounded-md border border-accent-200 bg-accent-50/40 p-2">
-                  <p className="mb-1.5 text-xs font-medium text-accent-800">{group.prompt} — choose one</p>
+                  <p className="mb-1.5 text-xs font-medium text-accent-800">{group.prompt} (choose one)</p>
                   <div className="flex items-center gap-2">
                     <Select
                       value={topic}
