@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Route } from "lucide-react"
+import { toast } from "sonner"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { ErrorState } from "@/components/common/ErrorState"
@@ -15,8 +17,9 @@ import { useBookmarks } from "@/hooks/useBookmarks"
 import { useAuth } from "@/hooks/useAuth"
 import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
+import { getStageFeedback, sendStageFeedback } from "@/lib/api"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
-import type { ChoiceGroup, RoadmapStage as RoadmapStageType } from "@/types"
+import type { ChoiceGroup, RoadmapStage as RoadmapStageType, StageFeedbackDifficulty, StageFeedbackItem } from "@/types"
 
 function filterChoiceDupes(topics: string[], choiceGroups: ChoiceGroup[] | undefined): string[] {
   if (!choiceGroups?.length) return topics
@@ -53,6 +56,7 @@ function filterChoiceDupes(topics: string[], choiceGroups: ChoiceGroup[] | undef
 export function Roadmap() {
   const [selectedSlug, setSelectedSlug] = useState<string | undefined>(undefined)
   const { profile, token } = useAuth()
+  const queryClient = useQueryClient()
   const slugsQuery = useRoadmapSlugs()
   const slug = selectedSlug ?? profile?.target_role_slug ?? undefined
 
@@ -61,6 +65,47 @@ export function Roadmap() {
   const nextResourcesQuery = useNextWithResources(slug, Boolean(token))
   const { bookmarkedIds, toggleBookmark } = useBookmarks()
   const nextTopics = nextResourcesQuery.data?.next ?? []
+
+  const feedbackQuery = useQuery({
+    queryKey: ["stage-feedback", slug],
+    queryFn: () => getStageFeedback(token!, slug!),
+    enabled: token !== null && slug !== undefined && slug !== "",
+  })
+  const feedbackByStage = new Map<string, StageFeedbackItem>()
+  for (const item of feedbackQuery.data?.feedback ?? []) {
+    feedbackByStage.set(item.stage, item)
+  }
+
+  const feedbackMutation = useMutation({
+    mutationFn: (input: { stage: string; position: number; difficulty: StageFeedbackDifficulty }) =>
+      sendStageFeedback(token!, {
+        slug: slug!,
+        stage: input.stage,
+        position: input.position,
+        difficulty: input.difficulty,
+      }),
+    onSuccess: (ack, variables) => {
+      queryClient.setQueryData<StageFeedbackItem[]>(["stage-feedback", slug], (previous) => {
+        const next = (previous ?? []).filter((item) => item.stage !== ack.stage)
+        next.push({
+          stage: ack.stage,
+          position: variables.position,
+          difficulty: ack.difficulty,
+          submitted_at: new Date().toISOString(),
+        })
+        return next
+      })
+      toast.success("Feedback saved")
+    },
+    onError: () => {
+      toast.error("Could not save feedback")
+    },
+  })
+
+  async function handleStageFeedback(stage: string, position: number, difficulty: StageFeedbackDifficulty) {
+    if (token === null || slug === undefined || slug === "") return
+    await feedbackMutation.mutateAsync({ stage, position, difficulty })
+  }
 
   const topics = roadmapQuery.data?.topics ?? []
   const graphQuery = useRoadmapGraph(slug)
@@ -142,6 +187,8 @@ export function Roadmap() {
               choiceGroups={choiceGroups}
               onToggleTopic={toggleTopic}
               defaultOpen={index === 0}
+              feedback={feedbackByStage.get(stage.name)}
+              onFeedback={token !== null ? (difficulty) => handleStageFeedback(stage.name, index + 1, difficulty) : undefined}
             />
           ))}
         </Accordion>

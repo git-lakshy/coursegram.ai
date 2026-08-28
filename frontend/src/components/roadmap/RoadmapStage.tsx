@@ -1,8 +1,9 @@
+import { useState } from "react"
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
 import { Select } from "@/components/ui/select"
 import { RoadmapItem } from "@/components/roadmap/RoadmapItem"
-import type { ChoiceGroup, ItemStatus, RoadmapStage as RoadmapStageType } from "@/types"
+import type { ChoiceGroup, ItemStatus, RoadmapStage as RoadmapStageType, StageFeedbackDifficulty, StageFeedbackItem } from "@/types"
 
 type RoadmapStageProps = {
   stage: RoadmapStageType
@@ -11,6 +12,16 @@ type RoadmapStageProps = {
   onToggleTopic: (topic: string) => void
   defaultOpen?: boolean
   choiceGroups?: ChoiceGroup[]
+  feedback?: StageFeedbackItem
+  onFeedback?: (difficulty: StageFeedbackDifficulty) => Promise<void> | void
+}
+
+const DIFFICULTIES: StageFeedbackDifficulty[] = ["too_easy", "just_right", "too_hard"]
+
+const DIFFICULTY_LABELS: Record<StageFeedbackDifficulty, string> = {
+  too_easy: "Too easy",
+  just_right: "Just right",
+  too_hard: "Too hard",
 }
 
 function getTopicStatuses(topics: string[], completedTopics: string[]) {
@@ -40,10 +51,24 @@ function getTopicStatuses(topics: string[], completedTopics: string[]) {
   return statuses
 }
 
-export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopic, defaultOpen, choiceGroups = [] }: RoadmapStageProps & { choiceGroups?: ChoiceGroup[] }) {
+export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopic, defaultOpen, choiceGroups = [], feedback, onFeedback }: RoadmapStageProps & { choiceGroups?: ChoiceGroup[] }) {
   const statuses = getTopicStatuses(stage.topics, completedTopics)
   const completedCount = stage.topics.filter((topic) => completedTopics.includes(topic)).length
   const percent = stage.topics.length > 0 ? Math.round((completedCount / stage.topics.length) * 100) : 0
+  const stageCompleted = stage.topics.length > 0 && completedCount === stage.topics.length
+  const [isSending, setIsSending] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+
+  async function handleFeedback(difficulty: StageFeedbackDifficulty) {
+    if (onFeedback === undefined) return
+    setIsSending(true)
+    try {
+      await onFeedback(difficulty)
+      setIsEditing(false)
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   // Find choice group for a topic (check both ids and display names)
   const getChoiceGroup = (topic: string): ChoiceGroup | undefined => {
@@ -118,6 +143,41 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
             }
             return <RoadmapItem key={topic} topic={topic} status={status} onToggle={() => onToggleTopic(topic)} />
           })}
+
+          {stageCompleted && onFeedback !== undefined && (feedback === undefined || isEditing) ? (
+            <div className="mt-3 rounded-md border border-border bg-background p-2.5">
+              <p className="text-xs font-medium text-ink-primary">How was this stage?</p>
+              <p className="text-xs text-ink-muted">Your feedback calibrates the difficulty of this plan.</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {DIFFICULTIES.map((difficulty) => (
+                  <button
+                    key={difficulty}
+                    type="button"
+                    disabled={isSending}
+                    onClick={() => void handleFeedback(difficulty)}
+                    className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-secondary transition-colors hover:border-accent-600 hover:text-accent-700 disabled:opacity-50"
+                  >
+                    {DIFFICULTY_LABELS[difficulty]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {stageCompleted && feedback !== undefined && !isEditing ? (
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-md border border-border bg-background p-2.5">
+              <p className="text-xs text-ink-secondary">
+                Stage feedback: <span className="font-medium text-ink-primary">{DIFFICULTY_LABELS[feedback.difficulty]}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="text-xs font-medium text-ink-secondary underline hover:text-ink-primary"
+              >
+                Change
+              </button>
+            </div>
+          ) : null}
         </div>
       </AccordionContent>
     </AccordionItem>

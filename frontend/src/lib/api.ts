@@ -23,6 +23,9 @@ import type {
   RoadmapGraphResponse,
   RoadmapResponse,
   RoadmapSlugsResponse,
+  StageFeedbackAck,
+  StageFeedbackRequest,
+  StageFeedbackResponse,
   StreakResponse,
 } from "@/types"
 
@@ -271,5 +274,13 @@ export function deleteProfile(token: string): Promise<DeleteProfileResponse> {
 
 export function updatePlan(token: string, plan: AccountPlan): Promise<LearnerProfile> {
   return request<LearnerProfile>("/plan", { method: "POST", body: { plan }, token })
+}
+
+export function getStageFeedback(token: string, slug: string): Promise<StageFeedbackResponse> {
+  return request<StageFeedbackResponse>(`/feedback/stage?slug=${encodeURIComponent(slug)}`, { token })
+}
+
+export function sendStageFeedback(token: string, payload: StageFeedbackRequest): Promise<StageFeedbackAck> {
+  return request<StageFeedbackAck>("/feedback/stage", { method: "POST", body: payload, token })
 }
 

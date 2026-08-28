@@ -3,7 +3,7 @@
 Append only log powering streaks, daily goals, and the personalized
 recommendation learning layer. Event types: topic_completed,
 topic_uncompleted, resource_opened, resource_saved, quiz_taken,
-plan_generated.
+plan_generated, plan_changed, stage_feedback.
 """
 
 import datetime
@@ -19,6 +19,8 @@ VALID_TYPES = {
     "resource_saved",
     "quiz_taken",
     "plan_generated",
+    "plan_changed",
+    "stage_feedback",
 }
 
 
@@ -105,3 +107,28 @@ def events_this_month(user_email: str) -> int:
             {"email": user_email},
         ).scalar()
     return int(row or 0)
+
+
+def latest_stage_feedback(user_email: str, slug: str) -> list[dict]:
+    """Latest difficulty feedback per stage for one roadmap, ordered by position."""
+    engine = get_engine()
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT detail->>'stage' AS stage, detail->>'position' AS position, "
+                "detail->>'difficulty' AS difficulty, created_at FROM events "
+                "WHERE email = :email AND type = 'stage_feedback' "
+                "AND detail->>'slug' = :slug ORDER BY created_at ASC"
+            ),
+            {"email": user_email, "slug": slug},
+        ).fetchall()
+    latest: dict[str, dict] = {}
+    for stage, position, difficulty, created_at in rows:
+        if stage:
+            latest[stage] = {
+                "stage": stage,
+                "position": int(position or 0),
+                "difficulty": difficulty,
+                "submitted_at": created_at.isoformat(),
+            }
+    return sorted(latest.values(), key=lambda item: (item["position"], item["stage"]))

@@ -221,3 +221,81 @@ def test_firebase_token_profile_flow(client, monkeypatch):
         headers={"kid": "test-kid"},
     )
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
+
+
+@requires_database
+def test_stage_feedback_flow(client, monkeypatch):
+    """Stage feedback round trips: post, read latest, invalid difficulty rejected."""
+    import time
+    import uuid
+
+    import jwt
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    import app.auth_security as auth_security
+
+    project_id = "test-project"
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "securetoken@test-project")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    pem = cert.public_bytes(encoding=serialization.Encoding.PEM).decode()
+    monkeypatch.setattr(auth_security, "FIREBASE_PROJECT_ID", project_id)
+    monkeypatch.setattr(auth_security, "_firebase_certs", ({"test-kid": pem}, time.time()))
+
+    email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    token = jwt.encode(
+        {
+            "iss": f"https://securetoken.google.com/{project_id}",
+            "aud": project_id,
+            "sub": "uid-1",
+            "email": email,
+            "iat": now,
+            "exp": now + 3600,
+        },
+        key,
+        algorithm="RS256",
+        headers={"kid": "test-kid"},
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    import app.main as main_mod
+
+    monkeypatch.setattr(main_mod, "list_roadmap_slugs", lambda: ["python"])
+
+    def _feedback(stage, difficulty):
+        return client.post(
+            "/feedback/stage",
+            headers=headers,
+            json={"slug": "python", "stage": stage, "position": 1, "difficulty": difficulty},
+        )
+
+    assert _feedback("Foundations", "too_hard").status_code == 200
+    assert _feedback("Foundations", "just_right").status_code == 200
+    assert _feedback("Foundations", "impossible").status_code == 422
+
+    body = client.get("/feedback/stage", headers=headers, params={"slug": "python"}).json()
+    stages = [item["stage"] for item in body["feedback"]]
+    assert "Foundations" in stages
+    found = next(item for item in body["feedback"] if item["stage"] == "Foundations")
+    assert found["difficulty"] == "just_right"
+
+    assert client.post(
+        "/feedback/stage",
+        headers=headers,
+        json={"slug": "does-not-exist", "stage": "S", "position": 1, "difficulty": "too_easy"},
+    ).status_code == 404
+
+    assert client.get("/feedback/stage", headers=headers, params={"slug": "python"}).status_code == 200
+    assert client.get("/feedback/stage", params={"slug": "python"}).status_code == 401

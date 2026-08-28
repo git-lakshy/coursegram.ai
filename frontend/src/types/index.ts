@@ -204,3 +204,30 @@ export type DeleteProfileResponse = {
   deleted: boolean
 }
 
+export type StageFeedbackDifficulty = "too_easy" | "just_right" | "too_hard"
+
+export type StageFeedbackItem = {
+  stage: string
+  position: number
+  difficulty: StageFeedbackDifficulty
+  submitted_at: string
+}
+
+export type StageFeedbackResponse = {
+  slug: string
+  feedback: StageFeedbackItem[]
+}
+
+export type StageFeedbackRequest = {
+  slug: string
+  stage: string
+  position: number
+  difficulty: StageFeedbackDifficulty
+}
+
+export type StageFeedbackAck = {
+  slug: string
+  stage: string
+  difficulty: StageFeedbackDifficulty
+}
+

@@ -350,6 +350,35 @@ def record_activity(
     return {"recorded": True}
 
 
+class StageFeedbackRequest(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+    stage: str = Field(min_length=1, max_length=200)
+    position: int = Field(ge=1, le=50)
+    difficulty: Literal["too_easy", "just_right", "too_hard"]
+
+
+@app.post("/feedback/stage")
+def post_stage_feedback(
+    payload: StageFeedbackRequest, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Record the learner's difficulty feedback for a completed stage."""
+    if payload.slug not in list_roadmap_slugs():
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    record_event(email, "stage_feedback", payload.model_dump())
+    return {"slug": payload.slug, "stage": payload.stage, "difficulty": payload.difficulty}
+
+
+@app.get("/feedback/stage")
+def get_stage_feedback(
+    slug: str = Query(min_length=1, max_length=100),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Return the learner's latest stage feedback for a roadmap."""
+    from app.event_store import latest_stage_feedback
+
+    return {"slug": slug, "feedback": latest_stage_feedback(email, slug)}
+
+
 @app.get("/streak")
 def get_streak(email: str = Depends(get_current_user_email)) -> dict:
     """Return the learner's current learning streak and monthly activity."""
