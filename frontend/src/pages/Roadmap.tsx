@@ -18,9 +18,9 @@ import { useAuth } from "@/hooks/useAuth"
 import { useLearning } from "@/hooks/useLearning"
 import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
-import { getStageFeedback, sendStageFeedback } from "@/lib/api"
+import { getStageFeedback, getTrackProjects, getUserProjects, sendStageFeedback } from "@/lib/api"
 import { groupTopicsIntoStages } from "@/lib/roadmapStages"
-import type { ChoiceGroup, RoadmapStage as RoadmapStageType, StageFeedbackDifficulty, StageFeedbackItem } from "@/types"
+import type { ChoiceGroup, ProjectState, RoadmapStage as RoadmapStageType, StageFeedbackDifficulty, StageFeedbackItem } from "@/types"
 
 function filterChoiceDupes(topics: string[], choiceGroups: ChoiceGroup[] | undefined): string[] {
   if (!choiceGroups?.length) return topics
@@ -112,6 +112,16 @@ export function Roadmap() {
   const topics = roadmapQuery.data?.topics ?? []
   const graphQuery = useRoadmapGraph(slug)
   const choiceGroups = graphQuery.data?.choice_groups ?? []
+  const trackProjectsQuery = useQuery({
+    queryKey: ["track-projects", slug],
+    queryFn: () => getTrackProjects(slug!),
+    enabled: slug !== undefined && slug !== "",
+  })
+  const userProjectsQuery = useQuery({
+    queryKey: ["user-projects", token],
+    queryFn: () => getUserProjects(token!),
+    enabled: token !== null,
+  })
   const personalized = profile?.personalized_roadmap
   const usePersonalized =
     personalized !== null && personalized !== undefined && personalized.slug === slug
@@ -123,6 +133,22 @@ export function Roadmap() {
         milestone: phase.milestone,
       }))
     : groupTopicsIntoStages(slug ?? "roadmap", filterChoiceDupes(topics, choiceGroups))
+
+  const trackedProjects = new Map<string, ProjectState>()
+  for (const row of userProjectsQuery.data?.projects ?? []) {
+    if (row.slug === slug) trackedProjects.set(row.project_id, row.state)
+  }
+  const stageProjectMap = new Map<number, { title: string; state?: ProjectState }>()
+  if (trackProjectsQuery.data !== undefined) {
+    stages.forEach((stage, index) => {
+      const match = trackProjectsQuery.data.projects.find((project) =>
+        project.related_topics.some((topic) => stage.topics.includes(topic)),
+      )
+      if (match) {
+        stageProjectMap.set(index, { title: match.title, state: trackedProjects.get(match.id) })
+      }
+    })
+  }
 
   if (slug === undefined || slug === null || slug === "") {
     return (
@@ -191,6 +217,7 @@ export function Roadmap() {
               defaultOpen={index === 0}
               feedback={feedbackByStage.get(stage.name)}
               onFeedback={token !== null ? (difficulty) => handleStageFeedback(stage.name, index + 1, difficulty) : undefined}
+              project={stageProjectMap.get(index)}
             />
           ))}
         </Accordion>

@@ -42,6 +42,8 @@ from app.onboarding import (
 )
 from app.profile_store import load_profile, save_profile
 from app.progress_store import get_progress, save_progress
+from app import project_store
+from app import projects as projects_pipeline
 from app.resources_store import next_topics_with_resources, search_resources
 from app.roadmap_store import (
     RoadmapNotFound,
@@ -96,7 +98,9 @@ RATE_LIMITS: dict[str, tuple[int, float]] = {
 }
 _rate_buckets: dict[str, list[float]] = {}
 _RATE_BUCKET_TTL = 300.0
-RATE_PREFIX_LIMITS: list[tuple[str, tuple[int, float]]] = []
+RATE_PREFIX_LIMITS: list[tuple[str, tuple[int, float]]] = [
+    ("/projects/", (20, 60.0)),
+]
 
 
 @app.middleware("http")
@@ -347,6 +351,90 @@ def delete_learning(
     """Stop tracking a course."""
     course_store.remove(email, resource_id)
     return {"resource_id": resource_id, "status": None}
+
+
+@app.get("/roadmaps/{slug}/projects")
+async def get_track_projects_endpoint(slug: str) -> dict:
+    """Return the track's project suggestions, generating and caching once."""
+    try:
+        projects = await projects_pipeline.get_track_projects(slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    return {"slug": slug, "count": len(projects), "projects": projects}
+
+
+@app.get("/projects")
+def get_user_projects_endpoint(email: str = Depends(get_current_user_email)) -> dict:
+    """Return the learner's project states, evidence, and analyses."""
+    rows = project_store.list_user_projects(email)
+    return {"count": len(rows), "projects": rows}
+
+
+class ProjectUpdateRequest(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+    state: Literal["planned", "in_progress", "completed"] | None = None
+    repo_url: str | None = Field(default=None, max_length=500)
+    demo_url: str | None = Field(default=None, max_length=500)
+
+
+@app.put("/projects/{project_id}")
+def update_project_endpoint(
+    project_id: str,
+    payload: ProjectUpdateRequest,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Set a project's state or save evidence links."""
+    if payload.slug not in list_roadmap_slugs():
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    row = project_store.upsert_project(
+        email,
+        project_id,
+        payload.slug,
+        payload.state,
+        payload.repo_url,
+        payload.demo_url,
+    )
+    if payload.state is not None:
+        record_event(
+            email,
+            "project_state_changed",
+            {"project_id": project_id, "slug": payload.slug, "state": payload.state},
+        )
+    return {"project_id": project_id, **row}
+
+
+class ProjectAnalyzeRequest(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+
+
+@app.post("/projects/{project_id}/analyze")
+async def analyze_project_endpoint(
+    project_id: str,
+    payload: ProjectAnalyzeRequest,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Run an honest AI review of the learner's project evidence."""
+    if payload.slug not in list_roadmap_slugs():
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    row = project_store.get_project_row(email, project_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Set a project state first")
+    try:
+        profile = load_profile(email)
+        track_projects = projects_pipeline.load_cached_projects(payload.slug)
+        if track_projects is None:
+            track_projects = await projects_pipeline.get_track_projects(payload.slug)
+        definition = next((item for item in track_projects if item["id"] == project_id), None)
+        if definition is None:
+            raise HTTPException(status_code=404, detail="Unknown project for this track")
+        analysis = await projects_pipeline.analyze_project(profile, definition, row)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    except projects_pipeline.ProjectError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+    project_store.save_analysis(email, project_id, analysis)
+    record_event(email, "project_analyzed", {"project_id": project_id, "slug": payload.slug})
+    return {"project_id": project_id, "analysis": analysis}
 
 
 

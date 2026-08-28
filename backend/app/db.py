@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS user_courses (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (email, resource_id)
 );
+
+CREATE TABLE IF NOT EXISTS user_projects (
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    project_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'planned',
+    repo_url TEXT,
+    demo_url TEXT,
+    analysis JSONB,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (email, project_id)
+);
 """
 
 

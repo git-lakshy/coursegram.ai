@@ -249,3 +249,56 @@ export type LearningStatusResponse = {
   status: CourseTrackStatus | null
 }
 
+export type ProjectSuggestion = {
+  id: string
+  title: string
+  description: string
+  stage: string
+  difficulty: string
+  skills: string[]
+  related_topics: string[]
+}
+
+export type TrackProjectsResponse = {
+  slug: string
+  count: number
+  projects: ProjectSuggestion[]
+}
+
+export type ProjectAnalysis = {
+  verdict: string
+  strengths: string[]
+  gaps: string[]
+  next_steps: string[]
+  analyzed_at?: string
+}
+
+export type ProjectState = "planned" | "in_progress" | "completed"
+
+export type UserProject = {
+  project_id: string
+  slug: string
+  state: ProjectState
+  repo_url: string | null
+  demo_url: string | null
+  analysis: ProjectAnalysis | null
+  updated_at: string
+}
+
+export type UserProjectsResponse = {
+  count: number
+  projects: UserProject[]
+}
+
+export type ProjectUpdateResponse = {
+  project_id: string
+  state: ProjectState
+  repo_url: string | null
+  demo_url: string | null
+}
+
+export type ProjectAnalysisResponse = {
+  project_id: string
+  analysis: ProjectAnalysis
+}
+

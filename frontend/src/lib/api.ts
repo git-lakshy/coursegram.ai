@@ -18,6 +18,9 @@ import type {
   ProgressResponse,
   NextWithResourcesResponse,
   PlanResponse,
+  ProjectAnalysisResponse,
+  ProjectState,
+  ProjectUpdateResponse,
   QuizQuestion,
   QuizResponse,
   RegenerateRoadmapResponse,
@@ -30,6 +33,8 @@ import type {
   StageFeedbackRequest,
   StageFeedbackResponse,
   StreakResponse,
+  TrackProjectsResponse,
+  UserProjectsResponse,
 } from "@/types"
 
 const TOKEN_KEY = "coursegram.token"
@@ -306,6 +311,34 @@ export function setLearningStatus(
 export function removeLearning(token: string, resourceId: string): Promise<LearningStatusResponse> {
   return request<LearningStatusResponse>(`/learning/${encodeURIComponent(resourceId)}`, {
     method: "DELETE",
+    token,
+  })
+}
+
+export function getTrackProjects(slug: string): Promise<TrackProjectsResponse> {
+  return request<TrackProjectsResponse>(`/roadmaps/${encodeURIComponent(slug)}/projects`)
+}
+
+export function getUserProjects(token: string): Promise<UserProjectsResponse> {
+  return request<UserProjectsResponse>("/projects", { token })
+}
+
+export function setProjectState(
+  token: string,
+  projectId: string,
+  payload: { slug: string; state?: ProjectState; repo_url?: string | null; demo_url?: string | null },
+): Promise<ProjectUpdateResponse> {
+  return request<ProjectUpdateResponse>(`/projects/${encodeURIComponent(projectId)}`, {
+    method: "PUT",
+    body: payload,
+    token,
+  })
+}
+
+export function analyzeProject(token: string, projectId: string, slug: string): Promise<ProjectAnalysisResponse> {
+  return request<ProjectAnalysisResponse>(`/projects/${encodeURIComponent(projectId)}/analyze`, {
+    method: "POST",
+    body: { slug },
     token,
   })
 }
