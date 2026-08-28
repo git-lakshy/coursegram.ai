@@ -33,7 +33,7 @@ def test_normalize_sorts_topologically():
 
 def test_normalize_derives_domains_and_version():
     graph = _graph()
-    assert graph["version"] == 2
+    assert graph["version"] == 3
     assert graph["domains"] == ["core"]
     assert all(node["level"] == "beginner" for node in graph["nodes"])
 
