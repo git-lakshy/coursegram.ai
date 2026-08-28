@@ -7,7 +7,9 @@ available. When no LLM key is configured the quiz endpoints return 503
 and the frontend skips straight to the roadmap.
 """
 
+import difflib
 import json
+import logging
 import re
 from datetime import datetime, timezone
 
@@ -16,6 +18,8 @@ from pydantic import BaseModel, Field
 
 from app import llm
 from app.roadmap_store import RoadmapNotFound, list_roadmap_slugs, load_roadmap_topics
+
+logger = logging.getLogger("app.onboarding")
 
 QUIZ_QUESTION_COUNT = 4
 
@@ -97,14 +101,33 @@ def _parse_json(raw: str) -> dict:
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         if start == -1 or end <= start:
+            logger.warning("LLM reply contained no JSON object: %.300s", raw)
             raise HTTPException(status_code=502, detail="LLM reply contained no JSON object")
         try:
             data = json.loads(cleaned[start : end + 1])
         except ValueError as error:
+            logger.warning("LLM returned invalid JSON (%s): %.300s", error, raw)
             raise HTTPException(status_code=502, detail=f"LLM returned invalid JSON: {error}")
     if not isinstance(data, dict):
         raise HTTPException(status_code=502, detail="LLM returned unexpected JSON shape")
     return data
+
+
+def _canonical_topic(topic: str, remaining: list[str]) -> str | None:
+    """Map an LLM topic string onto the track reference list.
+
+    Tolerates small wording drift so a near miss does not get dropped:
+    the roadmap, progress tracking, and resource matching all assume
+    phases use the reference topic names verbatim.
+    """
+    remaining_lower = [name.lower() for name in remaining]
+    lower = topic.strip().lower()
+    if lower in remaining_lower:
+        return remaining[remaining_lower.index(lower)]
+    close = difflib.get_close_matches(lower, remaining_lower, n=1, cutoff=0.82)
+    if close:
+        return remaining[remaining_lower.index(close[0])]
+    return None
 
 
 async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
@@ -196,53 +219,73 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
         '{"summary": "one sentence describing the path", "phases": '
         '[{"name": "...", "milestone": "...", "topics": ["..."]}]}'
     )
-    raw = await llm.chat_completion(
-        [{"role": "user", "content": prompt}],
-        json_mode=True,
-        temperature=0.3,
-        max_tokens=3000,
-    )
-    data = _parse_json(raw)
-    phases = [
-        PlanPhase(
-            name=str(item.get("name", "")).strip(),
-            milestone=str(item.get("milestone", "")).strip(),
-            topics=[str(topic) for topic in item.get("topics", []) if str(topic).strip()],
-        )
-        for item in data.get("phases", [])
-        if isinstance(item, dict) and item.get("name")
-    ]
-    if not phases:
-        raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
-    # Enforce at most one option per choice group and drop hallucinated topics
-    if choice_groups:
-        name_to_id = {n["name"].lower(): n["id"] for n in graph["nodes"]}
-        opt_to_group = {opt: grp["id"] for grp in choice_groups for opt in grp.get("options", [])}
-        valid_lower = {t.lower() for t in remaining}
+
+    name_to_id = {n["name"].lower(): n["id"] for n in graph["nodes"]}
+    opt_to_group = {opt: grp["id"] for grp in choice_groups for opt in grp.get("options", [])}
+
+    def build_response(data: dict) -> PlanResponse:
+        phases = [
+            PlanPhase(
+                name=str(item.get("name", "")).strip(),
+                milestone=str(item.get("milestone", "")).strip(),
+                topics=[str(topic) for topic in item.get("topics", []) if str(topic).strip()],
+            )
+            for item in data.get("phases", [])
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if not phases:
+            raise ValueError("no phases in reply")
         seen_group: dict[str, str] = {}
         filtered: list[PlanPhase] = []
         for phase in phases:
             kept: list[str] = []
             for topic in phase.topics:
-                tid = name_to_id.get(topic.lower())
+                canonical = _canonical_topic(topic, remaining)
+                if canonical is None:
+                    continue
+                tid = name_to_id.get(canonical.lower())
                 grp = opt_to_group.get(tid or "")
                 if grp and grp in seen_group:
                     continue
                 if grp:
-                    seen_group[grp] = topic
-                if topic.lower() not in valid_lower and tid is None:
-                    continue
-                kept.append(topic)
+                    seen_group[grp] = canonical
+                if canonical not in kept:
+                    kept.append(canonical)
             if kept:
                 filtered.append(PlanPhase(name=phase.name, milestone=phase.milestone, topics=kept))
-        phases = filtered
-        if not phases:
-            raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
-    return PlanResponse(
-        slug=payload.slug,
-        summary=str(data.get("summary", "")).strip(),
-        phases=phases,
-    )
+        if not filtered:
+            raise ValueError("every phase topic was dropped")
+        return PlanResponse(
+            slug=payload.slug,
+            summary=str(data.get("summary", "")).strip(),
+            phases=filtered,
+        )
+
+    last_error: str | None = None
+    for attempt in range(2):
+        attempt_prompt = prompt
+        if attempt > 0:
+            attempt_prompt += (
+                "\n\nImportant: reply with the raw JSON object only. "
+                "No markdown, no commentary, no truncated output."
+            )
+        try:
+            raw = await llm.chat_completion(
+                [{"role": "user", "content": attempt_prompt}],
+                json_mode=True,
+                temperature=0.3 if attempt == 0 else 0.5,
+                max_tokens=4096,
+            )
+            result = build_response(_parse_json(raw))
+            return result
+        except llm.LLMError as error:
+            last_error = str(error)
+            logger.warning("Plan attempt %s failed: %s", attempt + 1, error)
+        except (HTTPException, ValueError) as error:
+            detail = error.detail if isinstance(error, HTTPException) else str(error)
+            last_error = str(detail)
+            logger.warning("Plan attempt %s failed: %s", attempt + 1, detail)
+    raise HTTPException(status_code=502, detail="The assistant could not build a roadmap")
 
 
 async def generate_quiz(payload: QuizRequest) -> QuizResponse:

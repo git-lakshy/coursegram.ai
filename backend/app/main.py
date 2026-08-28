@@ -123,6 +123,9 @@ async def rate_limit_middleware(request: Request, call_next):
 @app.exception_handler(UpstreamError)
 @app.exception_handler(LLMError)
 def upstream_error_handler(request, exc):
+    logging.getLogger("app.main").warning(
+        "Upstream failure on %s %s: %s", request.method, request.url.path, exc
+    )
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 

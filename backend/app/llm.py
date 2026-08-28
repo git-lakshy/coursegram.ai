@@ -122,11 +122,22 @@ async def chat_completion(
         raise LLMError(f"LLM provider returned status {response.status_code}")
 
     try:
-        message = response.json()["choices"][0]["message"]
+        body = response.json()
+        message = body["choices"][0]["message"]
     except (KeyError, IndexError, ValueError) as error:
         raise LLMError("LLM provider returned an unexpected response") from error
 
+    finish_reason = body["choices"][0].get("finish_reason")
+    if finish_reason == "length":
+        logger.warning(
+            "LLM output truncated (finish_reason=length, max_tokens=%s)", body["usage"]
+        )
+        raise LLMError("LLM output was truncated before the answer completed")
+
     content = message.get("content")
     if not content or not str(content).strip():
+        logger.warning(
+            "LLM returned empty content (finish_reason=%s)", finish_reason
+        )
         raise LLMError("LLM returned only reasoning with no answer")
     return strip_reasoning(str(content))
