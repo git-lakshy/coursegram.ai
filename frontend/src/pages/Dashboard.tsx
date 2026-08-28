@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { ChartNoAxesCombined, Route, Target, Waypoints } from "lucide-react"
 
 import { AiAssistantPanel } from "@/components/dashboard/AiAssistantPanel"
+import { CurrentlyLearningPanel } from "@/components/dashboard/CurrentlyLearningPanel"
 import { EmptyState } from "@/components/common/EmptyState"
 import { MetricCard } from "@/components/dashboard/MetricCard"
 import { RecommendedCourses } from "@/components/dashboard/RecommendedCourses"
@@ -16,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/hooks/useAuth"
 import { useBookmarks } from "@/hooks/useBookmarks"
 import { useCourses } from "@/hooks/useCourses"
+import { useLearning } from "@/hooks/useLearning"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapSlugs } from "@/hooks/useRoadmaps"
@@ -57,6 +59,7 @@ export function Dashboard() {
   const coursesQuery = useCourses(nextTopic ?? "", 4)
   const matchedResourcesQuery = useNextWithResources(slug, Boolean(token))
   const { bookmarkedIds, toggleBookmark } = useBookmarks()
+  const { statusMap: learningStatus, setStatus: setTrackStatus } = useLearning()
   const matchedResources = (matchedResourcesQuery.data?.next ?? [])
     .flatMap((topic) => topic.resources)
     .slice(0, 4)
@@ -149,6 +152,8 @@ export function Dashboard() {
                         resource={resource}
                         saved={bookmarkedIds.has(resource.id)}
                         onToggleSave={toggleBookmark}
+                        trackStatus={learningStatus.get(resource.id)}
+                        onSetStatus={token !== null ? (id, status) => void setTrackStatus(id, status) : undefined}
                       />
                     </div>
                   ))}
@@ -166,6 +171,7 @@ export function Dashboard() {
         </div>
         <div className="space-y-5">
           <AiAssistantPanel nextTopic={nextTopic ?? null} />
+          <CurrentlyLearningPanel />
           <SkillSnapshot
             allTopics={topics}
             completedTopics={completedTopics}

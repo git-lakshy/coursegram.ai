@@ -1,16 +1,80 @@
-import { Bookmark, Clock3, Star } from "lucide-react"
+import { Bookmark, Clock3, Play, Star } from "lucide-react"
 
 import { useAuth } from "@/hooks/useAuth"
 import { recordEvent } from "@/lib/api"
-import type { ResourceItem } from "@/types"
+import type { CourseTrackStatus, ResourceItem } from "@/types"
 
 type ResourceCardProps = {
   resource: ResourceItem
   saved?: boolean
   onToggleSave?: (resourceId: string) => void
+  trackStatus?: CourseTrackStatus
+  onSetStatus?: (resourceId: string, status: CourseTrackStatus) => void
 }
 
-export function ResourceCard({ resource, saved, onToggleSave }: ResourceCardProps) {
+function TrackingControl({
+  resource,
+  trackStatus,
+  onSetStatus,
+}: {
+  resource: ResourceItem
+  trackStatus?: CourseTrackStatus
+  onSetStatus?: (resourceId: string, status: CourseTrackStatus) => void
+}) {
+  if (onSetStatus === undefined) return null
+
+  if (trackStatus === undefined) {
+    return (
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 self-start rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-secondary transition-colors hover:border-accent-600 hover:text-accent-700"
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          onSetStatus(resource.id, "learning")
+        }}
+      >
+        <Play className="h-3 w-3" />
+        Start learning
+      </button>
+    )
+  }
+
+  const label = trackStatus === "learning" ? "Learning" : "Completed"
+  const nextAction = trackStatus === "learning" ? "Mark completed" : "Learn again"
+  return (
+    <div className="flex items-center gap-1.5 self-start">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+          trackStatus === "learning"
+            ? "bg-blue-50 text-blue-700"
+            : "bg-accent-50 text-accent-700"
+        }`}
+      >
+        {label}
+      </span>
+      <button
+        type="button"
+        className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-secondary transition-colors hover:border-accent-600 hover:text-accent-700"
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          onSetStatus(resource.id, trackStatus === "learning" ? "completed" : "learning")
+        }}
+      >
+        {nextAction}
+      </button>
+    </div>
+  )
+}
+
+export function ResourceCard({
+  resource,
+  saved,
+  onToggleSave,
+  trackStatus,
+  onSetStatus,
+}: ResourceCardProps) {
   const { token } = useAuth()
 
   function handleOpen() {
@@ -78,6 +142,8 @@ export function ResourceCard({ resource, saved, onToggleSave }: ResourceCardProp
       {resource.description ? (
         <p className="line-clamp-2 text-xs text-ink-secondary">{resource.description}</p>
       ) : null}
+
+      <TrackingControl resource={resource} trackStatus={trackStatus} onSetStatus={onSetStatus} />
     </a>
   )
 }

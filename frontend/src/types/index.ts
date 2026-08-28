@@ -231,3 +231,21 @@ export type StageFeedbackAck = {
   difficulty: StageFeedbackDifficulty
 }
 
+export type CourseTrackStatus = "learning" | "completed"
+
+export type TrackedCourse = ResourceItem & {
+  status: CourseTrackStatus
+  started_at: string
+  updated_at: string
+}
+
+export type LearningResponse = {
+  count: number
+  courses: TrackedCourse[]
+}
+
+export type LearningStatusResponse = {
+  resource_id: string
+  status: CourseTrackStatus | null
+}
+

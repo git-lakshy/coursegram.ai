@@ -1,4 +1,4 @@
-"""FastAPI application exposing course listings and roadmap topic references."""
+﻿"""FastAPI application exposing course listings and roadmap topic references."""
 
 import asyncio
 import time
@@ -20,6 +20,7 @@ from app.auth import get_current_user_email
 from app.auth_security import firebase_enabled
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
+from app import course_store
 from app.db import DatabaseNotConfigured
 from app.llm import LLMError, close_client
 from app.event_store import events_this_month, learning_streak, record_event
@@ -95,11 +96,17 @@ RATE_LIMITS: dict[str, tuple[int, float]] = {
 }
 _rate_buckets: dict[str, list[float]] = {}
 _RATE_BUCKET_TTL = 300.0
+RATE_PREFIX_LIMITS: list[tuple[str, tuple[int, float]]] = []
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     limit = RATE_LIMITS.get(request.url.path)
+    if limit is None:
+        for prefix, prefix_limit in RATE_PREFIX_LIMITS:
+            if request.url.path.startswith(prefix):
+                limit = prefix_limit
+                break
     if limit is not None:
         max_requests, window = limit
         client_ip = request.client.host if request.client else "unknown"
@@ -305,6 +312,42 @@ def remove_bookmark_endpoint(
 
     remove_bookmark(email, resource_id)
     return {"resource_id": resource_id, "bookmarked": False}
+
+
+@app.get("/learning")
+def list_learning_endpoint(email: str = Depends(get_current_user_email)) -> dict:
+    """Return the learner's tracked courses with their status."""
+    items = course_store.list_tracked(email)
+    return {"count": len(items), "courses": items}
+
+
+class LearningStatusUpdate(BaseModel):
+    status: Literal["learning", "completed"]
+
+
+@app.put("/learning/{resource_id}")
+def set_learning_status(
+    resource_id: str,
+    payload: LearningStatusUpdate,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Mark a course as currently learning or completed."""
+    previous = course_store.set_status(email, resource_id, payload.status)
+    if payload.status == "learning" and previous is None:
+        record_event(email, "course_started", {"resource_id": resource_id})
+    if payload.status == "completed" and previous != "completed":
+        record_event(email, "course_completed", {"resource_id": resource_id})
+    return {"resource_id": resource_id, "status": payload.status}
+
+
+@app.delete("/learning/{resource_id}")
+def delete_learning(
+    resource_id: str, email: str = Depends(get_current_user_email)
+) -> dict:
+    """Stop tracking a course."""
+    course_store.remove(email, resource_id)
+    return {"resource_id": resource_id, "status": None}
+
 
 
 @app.get("/progress/{slug}")

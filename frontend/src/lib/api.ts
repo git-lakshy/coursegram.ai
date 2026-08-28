@@ -1,16 +1,19 @@
-import { API_BASE_URL } from "@/lib/config"
+﻿import { API_BASE_URL } from "@/lib/config"
 import type {
   AccountPlan,
   BookmarksResponse,
   BookmarkMutationResponse,
   ChatMessage,
   ChatResponse,
+  CourseTrackStatus,
   CoursesResponse,
   DeleteProfileResponse,
   GoalAnalysisResponse,
   GradeResponse,
   HealthResponse,
   LearnerProfile,
+  LearningResponse,
+  LearningStatusResponse,
   MeResponse,
   ProgressResponse,
   NextWithResourcesResponse,
@@ -282,5 +285,28 @@ export function getStageFeedback(token: string, slug: string): Promise<StageFeed
 
 export function sendStageFeedback(token: string, payload: StageFeedbackRequest): Promise<StageFeedbackAck> {
   return request<StageFeedbackAck>("/feedback/stage", { method: "POST", body: payload, token })
+}
+
+export function getLearning(token: string): Promise<LearningResponse> {
+  return request<LearningResponse>("/learning", { token })
+}
+
+export function setLearningStatus(
+  token: string,
+  resourceId: string,
+  status: CourseTrackStatus,
+): Promise<LearningStatusResponse> {
+  return request<LearningStatusResponse>(`/learning/${encodeURIComponent(resourceId)}`, {
+    method: "PUT",
+    body: { status },
+    token,
+  })
+}
+
+export function removeLearning(token: string, resourceId: string): Promise<LearningStatusResponse> {
+  return request<LearningStatusResponse>(`/learning/${encodeURIComponent(resourceId)}`, {
+    method: "DELETE",
+    token,
+  })
 }
 

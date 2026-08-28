@@ -74,6 +74,15 @@ CREATE TABLE IF NOT EXISTS resources (
     doc JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS user_courses (
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'learning',
+    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (email, resource_id)
+);
 """
 
 

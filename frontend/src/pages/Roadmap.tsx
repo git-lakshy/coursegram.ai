@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useLocalProgress } from "@/hooks/useLocalProgress"
 import { useBookmarks } from "@/hooks/useBookmarks"
 import { useAuth } from "@/hooks/useAuth"
+import { useLearning } from "@/hooks/useLearning"
 import { useNextWithResources } from "@/hooks/useResources"
 import { useRoadmap, useRoadmapGraph, useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import { getStageFeedback, sendStageFeedback } from "@/lib/api"
@@ -64,6 +65,7 @@ export function Roadmap() {
   const { completedTopics, toggleTopic } = useLocalProgress(slug)
   const nextResourcesQuery = useNextWithResources(slug, Boolean(token))
   const { bookmarkedIds, toggleBookmark } = useBookmarks()
+  const { statusMap: learningStatus, setStatus: setTrackStatus } = useLearning()
   const nextTopics = nextResourcesQuery.data?.next ?? []
 
   const feedbackQuery = useQuery({
@@ -237,6 +239,8 @@ export function Roadmap() {
                     resource={resource}
                     saved={bookmarkedIds.has(resource.id)}
                     onToggleSave={toggleBookmark}
+                    trackStatus={learningStatus.get(resource.id)}
+                    onSetStatus={token !== null ? (id, status) => void setTrackStatus(id, status) : undefined}
                   />
                 ))}
               </div>
