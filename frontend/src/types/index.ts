@@ -302,3 +302,57 @@ export type ProjectAnalysisResponse = {
   analysis: ProjectAnalysis
 }
 
+export type AssessmentStage = {
+  name: string
+  position: number
+  topics: string[]
+  milestone: string
+  completed_count: number
+  completed_topics: string[]
+  is_current: boolean
+  assessable: boolean
+  latest_result: {
+    stage: string
+    score: number
+    total: number
+    passed: boolean
+    detail: Record<string, unknown>
+    created_at: string
+  } | null
+}
+
+export type AssessmentStagesResponse = {
+  slug: string
+  stages: AssessmentStage[]
+}
+
+export type AssessmentGenerateResponse = {
+  stage: string
+  position: number
+  questions: QuizQuestion[]
+}
+
+export type AssessmentSubmitResponse = {
+  slug: string
+  stage: string
+  position: number
+  score: number
+  total: number
+  passed: boolean
+  summary: string
+  revisit_topics: string[]
+  resources: ResourceItem[]
+}
+
+export type AssessmentHistoryResponse = {
+  slug: string
+  count: number
+  results: {
+    stage: string
+    score: number
+    total: number
+    passed: boolean
+    created_at: string
+  }[]
+}
+

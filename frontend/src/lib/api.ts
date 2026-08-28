@@ -1,6 +1,10 @@
 ﻿import { API_BASE_URL } from "@/lib/config"
 import type {
   AccountPlan,
+  AssessmentGenerateResponse,
+  AssessmentHistoryResponse,
+  AssessmentStagesResponse,
+  AssessmentSubmitResponse,
   BookmarksResponse,
   BookmarkMutationResponse,
   ChatMessage,
@@ -341,5 +345,38 @@ export function analyzeProject(token: string, projectId: string, slug: string): 
     body: { slug },
     token,
   })
+}
+
+export function getAssessmentStages(token: string, slug: string): Promise<AssessmentStagesResponse> {
+  return request<AssessmentStagesResponse>(`/assessments/stages?slug=${encodeURIComponent(slug)}`, { token })
+}
+
+export function generateStageAssessment(
+  token: string,
+  slug: string,
+  stagePosition: number,
+): Promise<AssessmentGenerateResponse> {
+  return request<AssessmentGenerateResponse>("/assessments/generate", {
+    method: "POST",
+    body: { slug, stage_position: stagePosition },
+    token,
+  })
+}
+
+export function submitStageAssessment(
+  token: string,
+  slug: string,
+  stagePosition: number,
+  answers: { question_id: string; answer_index: number }[],
+): Promise<AssessmentSubmitResponse> {
+  return request<AssessmentSubmitResponse>("/assessments/submit", {
+    method: "POST",
+    body: { slug, stage_position: stagePosition, answers },
+    token,
+  })
+}
+
+export function getAssessmentHistory(token: string, slug: string): Promise<AssessmentHistoryResponse> {
+  return request<AssessmentHistoryResponse>(`/assessments?slug=${encodeURIComponent(slug)}`, { token })
 }
 

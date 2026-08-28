@@ -4,7 +4,8 @@ Append only log powering streaks, daily goals, and the personalized
 recommendation learning layer. Event types: topic_completed,
 topic_uncompleted, resource_opened, resource_saved, quiz_taken,
 plan_generated, plan_changed, stage_feedback, course_started,
-course_completed, project_state_changed, project_analyzed.
+course_completed, project_state_changed, project_analyzed,
+assessment_taken.
 """
 
 import datetime
@@ -26,6 +27,7 @@ VALID_TYPES = {
     "course_completed",
     "project_state_changed",
     "project_analyzed",
+    "assessment_taken",
 }
 
 

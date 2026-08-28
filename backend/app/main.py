@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from app.assistant import ChatRequest, ChatResponse, chat
+from app import assessments as assessments_pipeline
 from app.auth import get_current_user_email
 from app.auth_security import firebase_enabled
 from app.categories import get_categories
@@ -99,6 +100,7 @@ RATE_LIMITS: dict[str, tuple[int, float]] = {
 _rate_buckets: dict[str, list[float]] = {}
 _RATE_BUCKET_TTL = 300.0
 RATE_PREFIX_LIMITS: list[tuple[str, tuple[int, float]]] = [
+    ("/assessments/generate", (20, 60.0)),
     ("/projects/", (20, 60.0)),
 ]
 
@@ -435,6 +437,113 @@ async def analyze_project_endpoint(
     project_store.save_analysis(email, project_id, analysis)
     record_event(email, "project_analyzed", {"project_id": project_id, "slug": payload.slug})
     return {"project_id": project_id, "analysis": analysis}
+
+
+@app.get("/assessments/stages")
+def assessment_stages_endpoint(
+    slug: str = Query(min_length=1, max_length=100),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Return the learner's roadmap stages with assessability and results."""
+    try:
+        stages = assessments_pipeline.stages_for_learner(email, slug)
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    latest = assessments_pipeline.latest_stage_results(email, slug)
+    for stage in stages:
+        stage["latest_result"] = latest.get(stage["name"])
+    return {"slug": slug, "stages": stages}
+
+
+class AssessmentGenerateRequest(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+    stage_position: int = Field(ge=1, le=50)
+
+
+@app.post("/assessments/generate")
+async def assessment_generate_endpoint(
+    payload: AssessmentGenerateRequest,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Generate (or reuse cached) questions for one assessable stage."""
+    if payload.slug not in list_roadmap_slugs():
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    try:
+        return await assessments_pipeline.generate_stage_assessment(
+            email, payload.slug, payload.stage_position
+        )
+    except PermissionError:
+        raise HTTPException(
+            status_code=403,
+            detail="This stage is not assessable yet. Complete or start its topics first.",
+        )
+    except RoadmapNotFound:
+        raise HTTPException(status_code=404, detail="Unknown roadmap slug")
+    except llm.LLMNotConfigured as error:
+        raise HTTPException(status_code=503, detail=str(error))
+
+
+class AssessmentAnswer(BaseModel):
+    question_id: str = Field(min_length=1, max_length=50)
+    answer_index: int = Field(default=-1, ge=-1, le=9)
+
+
+class AssessmentSubmitRequest(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+    stage_position: int = Field(ge=1, le=50)
+    answers: list[AssessmentAnswer] = Field(max_length=20)
+
+
+@app.post("/assessments/submit")
+async def assessment_submit_endpoint(
+    payload: AssessmentSubmitRequest,
+    background_tasks: BackgroundTasks,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Grade against the cached answer key, adjust the roadmap on failure."""
+    # Grade strictly against the cached question set for this stage.
+    questions = None
+    stages = assessments_pipeline.stages_for_learner(email, payload.slug)
+    stage = next((item for item in stages if item["position"] == payload.stage_position), None)
+    if stage is not None:
+        questions = assessments_pipeline._load_cache(
+            payload.slug,
+            assessments_pipeline.stage_key(stage["position"], stage["name"]),
+        )
+    if questions is None:
+        raise HTTPException(status_code=404, detail="Generate the assessment first")
+    result = assessments_pipeline.submit_stage_assessment(
+        email,
+        payload.slug,
+        payload.stage_position,
+        [answer.model_dump() for answer in payload.answers],
+        questions,
+    )
+    assessments_pipeline.save_result(email, result)
+    record_event(
+        email,
+        "assessment_taken",
+        {
+            "slug": payload.slug,
+            "stage": result["stage"],
+            "score": result["score"],
+            "total": result["total"],
+        },
+    )
+    if result["revisit_topics"]:
+        background_tasks.add_task(refresh_learner_context, email)
+    return result
+
+
+@app.get("/assessments")
+def assessment_history_endpoint(
+    slug: str = Query(min_length=1, max_length=100),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Return the learner's latest assessment result per stage."""
+    latest = assessments_pipeline.latest_stage_results(email, slug)
+    items = sorted(latest.values(), key=lambda item: item["created_at"], reverse=True)
+    return {"slug": slug, "count": len(items), "results": items}
 
 
 

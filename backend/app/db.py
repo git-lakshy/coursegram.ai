@@ -95,6 +95,18 @@ CREATE TABLE IF NOT EXISTS user_projects (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (email, project_id)
 );
+
+CREATE TABLE IF NOT EXISTS assessment_results (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    slug TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    score INT NOT NULL,
+    total INT NOT NULL,
+    detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assessment_email_idx ON assessment_results (email, created_at DESC);
 """
 
 
