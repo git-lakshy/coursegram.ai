@@ -36,6 +36,11 @@ export function useLocalProgress(slug: string | undefined) {
     enabled: token !== null && slug !== undefined,
   })
 
+  useEffect(() => {
+    if (token === null || slug === undefined || serverQuery.data === undefined) return
+    setLocalState((previous) => ({ ...previous, [slug]: serverQuery.data.completed }))
+  }, [token, slug, serverQuery.data])
+
   const mutation = useMutation({
     mutationFn: (completed: string[]) => saveProgress(token!, slug!, completed),
     onSuccess: (data) => {
