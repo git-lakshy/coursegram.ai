@@ -36,6 +36,7 @@ const DEFAULT_PROFILE: LearnerProfile = {
   display_name: "",
   background: "",
   skill_level: "beginner",
+  plan: "free",
   target_role_slug: null,
   known_topics: [],
   onboarding_complete: false,

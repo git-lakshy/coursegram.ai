@@ -1,10 +1,12 @@
 import { API_BASE_URL } from "@/lib/config"
 import type {
+  AccountPlan,
   BookmarksResponse,
   BookmarkMutationResponse,
   ChatMessage,
   ChatResponse,
   CoursesResponse,
+  DeleteProfileResponse,
   GoalAnalysisResponse,
   GradeResponse,
   HealthResponse,
@@ -15,6 +17,7 @@ import type {
   PlanResponse,
   QuizQuestion,
   QuizResponse,
+  RegenerateRoadmapResponse,
   ResourcesResponse,
   RoadmapCategoriesResponse,
   RoadmapGraphResponse,
@@ -253,5 +256,20 @@ export function recordEvent(
 
 export function getStreak(token: string): Promise<StreakResponse> {
   return request<StreakResponse>("/streak", { token })
+}
+
+export function regenerateRoadmap(token: string, slug: string): Promise<RegenerateRoadmapResponse> {
+  return request<RegenerateRoadmapResponse>(`/roadmaps/${encodeURIComponent(slug)}/regenerate`, {
+    method: "POST",
+    token,
+  })
+}
+
+export function deleteProfile(token: string): Promise<DeleteProfileResponse> {
+  return request<DeleteProfileResponse>("/profile", { method: "DELETE", token })
+}
+
+export function updatePlan(token: string, plan: AccountPlan): Promise<LearnerProfile> {
+  return request<LearnerProfile>("/plan", { method: "POST", body: { plan }, token })
 }
 

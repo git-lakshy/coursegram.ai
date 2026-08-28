@@ -79,6 +79,8 @@ export type RoadmapGraphResponse = {
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced"
 
+export type AccountPlan = "free" | "paid"
+
 export type GoalAnalysisResponse = {
   track_slug: string
   summary: string
@@ -104,6 +106,7 @@ export type LearnerProfile = {
   display_name: string
   background: string
   skill_level: SkillLevel
+  plan: AccountPlan
   target_role_slug: string | null
   known_topics: string[]
   onboarding_complete: boolean
@@ -190,5 +193,14 @@ export type NextTopicWithResources = {
 export type NextWithResourcesResponse = {
   slug: string
   next: NextTopicWithResources[]
+}
+
+export type RegenerateRoadmapResponse = {
+  slug: string
+  personalized_roadmap: PersonalizedRoadmap
+}
+
+export type DeleteProfileResponse = {
+  deleted: boolean
 }
 
