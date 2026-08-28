@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Flag, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -16,6 +16,7 @@ import {
   generateQuiz,
   getRoadmapSlugs,
   gradeQuiz,
+  regenerateRoadmap,
   updateProfile,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -27,6 +28,9 @@ const AREA_LEVELS = ["beginner", "intermediate", "expert"] as const
 export function Onboarding() {
   const { token, email, profile, setProfile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const retake = (location.state as { retake?: boolean } | null)?.retake === true
+  const retakeStarted = useRef(false)
 
   const [step, setStep] = useState(0)
   const [goalText, setGoalText] = useState("")
@@ -53,6 +57,33 @@ export function Onboarding() {
     }
     return "Could not reach the AI service. Try again."
   }
+
+  useEffect(() => {
+    if (!retake || retakeStarted.current) return
+    retakeStarted.current = true
+    const retakeSlug = profile?.target_role_slug
+    if (token === null || profile === null || retakeSlug === null || retakeSlug === undefined) {
+      toast.error("No target track to reassess yet")
+      return
+    }
+    setSlug(retakeSlug)
+    setGoalText(profile.background)
+    setKnownTopics(profile.known_topics)
+    void (async () => {
+      setIsBusy(true)
+      setError(null)
+      try {
+        const quiz = await generateQuiz(token, retakeSlug, profile.known_topics, profile.skill_level)
+        setQuestions(quiz.questions)
+        setAnswers(quiz.questions.map(() => -1))
+        setStep(2)
+      } catch (err) {
+        setError(errorMessage(err))
+      } finally {
+        setIsBusy(false)
+      }
+    })()
+  }, [])
 
   async function submitGoal() {
     if (token === null || goalText.trim() === "") return
@@ -128,8 +159,29 @@ export function Onboarding() {
     try {
       const graded = await gradeQuiz(token, questions, answers)
       setResult({ score: graded.score, total: graded.total, level: graded.recommended_level, summary: graded.summary })
-      const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
-      setPlan(built)
+      if (retake) {
+        if (profile === null) throw new Error("Profile not loaded")
+        const saved = await updateProfile(token, {
+          display_name: profile.display_name,
+          background: profile.background,
+          skill_level: graded.recommended_level,
+          plan: profile.plan,
+          target_role_slug: profile.target_role_slug,
+          known_topics: profile.known_topics,
+          onboarding_complete: true,
+          personalized_roadmap: profile.personalized_roadmap,
+        })
+        setProfile(saved)
+        const regenerated = await regenerateRoadmap(token, slug)
+        setPlan({
+          slug: regenerated.slug,
+          summary: regenerated.personalized_roadmap.summary,
+          phases: regenerated.personalized_roadmap.phases,
+        })
+      } else {
+        const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
+        setPlan(built)
+      }
       setStep(3)
     } catch (err) {
       setError(errorMessage(err))
@@ -145,12 +197,18 @@ export function Onboarding() {
 
   async function startLearning() {
     if (token === null || plan === null) return
+    if (retake) {
+      toast.success("Your roadmap is ready")
+      navigate("/roadmap", { replace: true })
+      return
+    }
     setIsBusy(true)
     try {
       const saved = await updateProfile(token, {
         display_name: profile?.display_name || email?.split("@")[0] || "",
         background: goalText.trim(),
         skill_level: result?.level ?? lowestLevel,
+        plan: profile?.plan ?? "free",
         target_role_slug: plan.slug,
         known_topics: knownTopics,
         onboarding_complete: true,
