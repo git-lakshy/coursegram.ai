@@ -1,16 +1,17 @@
-"""AI assistant endpoint backed by the configured LLM provider."""
+"""AI assistant endpoint backed by the configured LLM provider.
+
+Every turn is grounded in graph retrieval (graph_rag): the matched topic
+neighborhoods, the learner's state, and matched resources. The reply is
+expected to cite topics from that context.
+"""
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
-import json
-
-from app import chat_store, llm
-from app.learner_context import context_summary_for, situation_for
+from app import chat_store, graph_rag, llm
 from app.roadmap_store import RoadmapNotFound, load_roadmap_topics
 
 MAX_HISTORY_MESSAGES = 8
-MAX_TOPIC_CONTEXT = 60
 
 
 class ChatMessage(BaseModel):
@@ -27,36 +28,8 @@ class ChatResponse(BaseModel):
     reply: str
 
 
-def build_context(user_email: str, profile, topics: list[str]) -> str:
-    """Compose the system prompt from the rolling context and profile."""
-    rolling = context_summary_for(user_email)
-    situation = situation_for(user_email)
-    recent = chat_store.recent_conversation_digest(user_email)
-    target = profile.target_role_slug or "not set yet"
-    known = ", ".join(profile.known_topics[:30]) or "unknown"
-    topic_list = ", ".join(topics[:MAX_TOPIC_CONTEXT])
-    parts = [
-        "You are the Coursegram learning assistant. Be concise, practical, "
-        "and encouraging. Answer questions about the learner's path, "
-        "suggest what to learn next, and recommend concrete practice. "
-        "Do not invent course URLs."
-    ]
-    if rolling:
-        parts.append(f"Learner context note: {rolling}")
-    if situation:
-        parts.append(f"Current position: {json.dumps(situation)}")
-    if recent:
-        parts.append(f"Recent conversation with this learner: {recent}")
-    parts.append(
-        f"Profile facts: name {profile.display_name or user_email}, "
-        f"level {profile.skill_level}, target track {target}, "
-        f"already knows: {known}. Track topics: {topic_list}."
-    )
-    return " ".join(parts)
-
-
 async def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
-    """Return an LLM reply grounded in the learner profile and track."""
+    """Return a grounded reply for one assistant turn."""
     if not llm.is_configured():
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
 
@@ -67,13 +40,13 @@ async def chat(user_email: str, profile, payload: ChatRequest) -> ChatResponse:
         except RoadmapNotFound:
             topics = []
 
-    messages = [{"role": "system", "content": build_context(user_email, profile, topics)}]
+    grounded = graph_rag.build_assistant_context(user_email, profile, payload.message)
+    messages = [{"role": "system", "content": grounded}]
     for item in payload.history[-MAX_HISTORY_MESSAGES:]:
         messages.append({"role": item.role, "content": item.content})
     messages.append({"role": "user", "content": payload.message})
 
-    reply = await llm.chat_completion(messages, max_tokens=2000, temperature=0.5)
+    reply = await llm.chat_completion(messages, max_tokens=2500, temperature=0.4)
     chat_store.add_message(user_email, "user", payload.message)
     chat_store.add_message(user_email, "assistant", reply)
     return ChatResponse(reply=reply)
-
