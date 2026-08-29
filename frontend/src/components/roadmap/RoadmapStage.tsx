@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, ChevronDown, Hammer } from "lucide-react"
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
 import { Select } from "@/components/ui/select"
 import { RoadmapItem } from "@/components/roadmap/RoadmapItem"
+import { cn } from "@/lib/utils"
 import type { ChoiceGroup, ItemStatus, ProjectState, RoadmapStage as RoadmapStageType, StageFeedbackDifficulty, StageFeedbackItem } from "@/types"
 
 type RoadmapStageProps = {
@@ -16,7 +17,7 @@ type RoadmapStageProps = {
   choiceGroups?: ChoiceGroup[]
   feedback?: StageFeedbackItem
   onFeedback?: (difficulty: StageFeedbackDifficulty) => Promise<void> | void
-  project?: { title: string; state?: ProjectState }
+  project?: { title: string; description: string; difficulty: string; skills: string[]; state?: ProjectState }
 }
 
 const DIFFICULTIES: StageFeedbackDifficulty[] = ["too_easy", "just_right", "too_hard"]
@@ -61,6 +62,7 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
   const stageCompleted = stage.topics.length > 0 && completedCount === stage.topics.length
   const [isSending, setIsSending] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isProjectOpen, setIsProjectOpen] = useState(false)
 
   async function handleFeedback(difficulty: StageFeedbackDifficulty) {
     if (onFeedback === undefined) return
@@ -194,25 +196,56 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
           ) : null}
 
           {project ? (
-            <Link
-              to="/projects"
-              className="mt-3 flex items-center justify-between gap-2 rounded-md border border-border bg-background p-2.5 transition-colors hover:bg-surface"
-            >
-              <span className="truncate text-xs text-ink-secondary">
-                Suggested project: <span className="font-medium text-ink-primary">{project.title}</span>
-              </span>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                  project.state === "completed"
-                    ? "bg-accent-50 text-accent-700"
-                    : project.state === "in_progress"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-background text-ink-muted border border-border"
-                }`}
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setIsProjectOpen((previous) => !previous)}
+                className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs text-ink-secondary transition-colors hover:bg-surface"
               >
-                {project.state === undefined ? "Planned" : project.state === "in_progress" ? "In progress" : project.state === "completed" ? "Completed" : "Planned"}
-              </span>
-            </Link>
+                <Hammer className="h-3.5 w-3.5 shrink-0 text-accent-700" />
+                <span className="truncate">
+                  Suggested project: <span className="font-medium text-ink-primary">{project.title}</span>
+                </span>
+                {project.state !== undefined ? (
+                  <span
+                    className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      project.state === "completed"
+                        ? "bg-accent-50 text-accent-700"
+                        : project.state === "in_progress"
+                          ? "bg-blue-50 text-blue-700"
+                          : "border border-border bg-surface text-ink-muted"
+                    }`}
+                  >
+                    {project.state === "in_progress" ? "In progress" : project.state === "completed" ? "Completed" : "Planned"}
+                  </span>
+                ) : null}
+                <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-ink-muted transition-transform", isProjectOpen && "rotate-180")} />
+              </button>
+              {isProjectOpen ? (
+                <div className="mt-2 rounded-md border border-border bg-background p-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">About this project</p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-secondary">{project.description}</p>
+                  {project.skills.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {project.skills.map((skill) => (
+                        <span key={skill} className="rounded-full bg-accent-50 px-1.5 py-0.5 text-[10px] font-medium text-accent-700">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] capitalize text-ink-muted">Difficulty: {project.difficulty}</span>
+                    <Link
+                      to="/projects"
+                      className="text-xs font-medium text-accent-700 hover:underline"
+                    >
+                      Open in projects
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </AccordionContent>

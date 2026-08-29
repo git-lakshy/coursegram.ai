@@ -138,14 +138,20 @@ export function Roadmap() {
   for (const row of userProjectsQuery.data?.projects ?? []) {
     if (row.slug === slug) trackedProjects.set(row.project_id, row.state)
   }
-  const stageProjectMap = new Map<number, { title: string; state?: ProjectState }>()
+  const stageProjectMap = new Map<number, { title: string; description: string; difficulty: string; skills: string[]; state?: ProjectState }>()
   if (trackProjectsQuery.data !== undefined) {
     stages.forEach((stage, index) => {
-      const match = trackProjectsQuery.data.projects.find((project) =>
+      const match = trackProjectsQuery.data?.projects.find((project) =>
         project.related_topics.some((topic) => stage.topics.includes(topic)),
       )
       if (match) {
-        stageProjectMap.set(index, { title: match.title, state: trackedProjects.get(match.id) })
+        stageProjectMap.set(index, {
+          title: match.title,
+          description: match.description,
+          difficulty: match.difficulty,
+          skills: match.skills,
+          state: trackedProjects.get(match.id),
+        })
       }
     })
   }
