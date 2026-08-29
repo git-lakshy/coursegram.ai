@@ -142,8 +142,44 @@ export type ChatMessage = {
   content: string
 }
 
+export type AssistantAction = {
+  type: string
+  topics?: string[]
+  stage_position?: number | null
+  stage_name?: string | null
+  stage_topics?: string[]
+  milestone?: string | null
+  level?: string | null
+  resource_id?: string | null
+  status?: string | null
+  project_id?: string | null
+  state?: string | null
+  hint?: string | null
+}
+
+export type AssistantActionProposal = {
+  action: AssistantAction
+  summary: string
+}
+
+export type AssistantExecuteResult = {
+  type: string
+  applied: boolean
+  summary?: string
+  reason?: string
+  project_id?: string
+  stage?: string
+  question_count?: number
+  topics?: string[]
+}
+
+export type AssistantExecuteResponse = {
+  results: AssistantExecuteResult[]
+}
+
 export type ChatResponse = {
   reply: string
+  actions: AssistantAction[]
 }
 
 export type RoadmapCategoriesResponse = {

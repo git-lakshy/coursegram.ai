@@ -5,6 +5,8 @@ import type {
   AssessmentHistoryResponse,
   AssessmentStagesResponse,
   AssessmentSubmitResponse,
+  AssistantAction,
+  AssistantExecuteResponse,
   BookmarksResponse,
   BookmarkMutationResponse,
   ChatHistoryResponse,
@@ -387,5 +389,16 @@ export function getChatHistory(token: string, limit = 40): Promise<ChatHistoryRe
 
 export function clearChatHistory(token: string): Promise<{ cleared: boolean }> {
   return request<{ cleared: boolean }>("/assistant/history", { method: "DELETE", token })
+}
+
+export function executeAssistantActions(
+  token: string,
+  actions: AssistantAction[],
+): Promise<AssistantExecuteResponse> {
+  return request<AssistantExecuteResponse>("/assistant/execute", {
+    method: "POST",
+    body: { actions },
+    token,
+  })
 }
 
