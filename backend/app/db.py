@@ -26,8 +26,10 @@ CREATE TABLE IF NOT EXISTS roadmaps (
     title TEXT NOT NULL DEFAULT '',
     topics JSONB NOT NULL DEFAULT '[]'::jsonb,
     graph JSONB,
+    categories JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE roadmaps ADD COLUMN IF NOT EXISTS categories JSONB;
 
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,

@@ -11,7 +11,7 @@ import os
 import re
 
 from app import llm
-from app.roadmap_store import RoadmapNotFound, load_roadmap_topics
+from app.roadmap_store import RoadmapNotFound, load_roadmap_graph, load_roadmap_topics
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "runtime", "category_cache")
 
@@ -49,8 +49,19 @@ def _valid_categories(payload) -> list[dict] | None:
     return cleaned or None
 
 
-def _fallback_categories(topics: list[str]) -> list[dict]:
-    """Split topics into sequential bands when the LLM is unavailable."""
+def _fallback_categories(topics: list[str], graph: dict | None = None) -> list[dict]:
+    """Group topics without the LLM: by real domain when the graph has
+    them, otherwise sequential bands as a last resort."""
+    if graph is not None:
+        domain_groups: dict[str, list[str]] = {}
+        for node in graph.get("nodes", []):
+            domain = str(node.get("domain", "core"))
+            domain_groups.setdefault(domain, []).append(str(node["name"]))
+        if len(domain_groups) >= 2:
+            return [
+                {"name": domain.replace("-", " ").title(), "topics": topics_in_domain}
+                for domain, topics_in_domain in domain_groups.items()
+            ]
     size = max(4, min(12, len(topics) // 4 or 4))
     categories = []
     for index in range(0, len(topics), size):
@@ -68,12 +79,56 @@ def _load_json(raw: str):
     return json.loads(cleaned)
 
 
+def _load_db_categories(slug: str) -> list[dict] | None:
+    """Categories persist in the database so deploys never lose them."""
+    from sqlalchemy import text
+
+    from app.db import get_engine
+
+    try:
+        engine = get_engine()
+        with engine.connect() as connection:
+            row = connection.execute(
+                text("SELECT categories FROM roadmaps WHERE slug = :slug"),
+                {"slug": slug},
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return _valid_categories(row[0])
+    except Exception:
+        return None
+
+
+def _save_db_categories(slug: str, categories: list[dict]) -> None:
+    from sqlalchemy import text
+
+    from app.db import get_engine
+
+    try:
+        engine = get_engine()
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE roadmaps SET categories = CAST(:categories AS jsonb), "
+                    "updated_at = now() WHERE slug = :slug"
+                ),
+                {"slug": slug, "categories": json.dumps(categories)},
+            )
+    except Exception:
+        pass
+
+
 async def get_categories(slug: str) -> dict:
-    """Return meaningful skill categories for a track, cached after first run."""
+    """Return meaningful skill categories for a track, persisted in the DB."""
     try:
         topics = load_roadmap_topics(slug)
+        graph = load_roadmap_graph(slug)
     except RoadmapNotFound:
         raise RoadmapNotFound(slug)
+
+    stored = _load_db_categories(slug)
+    if stored is not None:
+        return {"slug": slug, "categories": stored}
 
     cache = _cache_path(slug)
     if os.path.exists(cache):
@@ -82,12 +137,13 @@ async def get_categories(slug: str) -> dict:
                 payload = json.load(file)
             categories = _valid_categories(payload)
             if categories is not None:
+                _save_db_categories(slug, categories)
                 return {"slug": slug, "categories": categories}
         except (OSError, json.JSONDecodeError):
             pass
 
     if not llm.is_configured():
-        categories = _fallback_categories(topics)
+        categories = _fallback_categories(topics, graph)
     else:
         sample = topics[:MAX_TOPICS_IN_PROMPT]
         prompt = (
@@ -111,7 +167,8 @@ async def get_categories(slug: str) -> dict:
             categories = None
         if categories is None:
             # Fallbacks are never cached so a real grouping can replace them.
-            return {"slug": slug, "categories": _fallback_categories(topics)}
+            return {"slug": slug, "categories": _fallback_categories(topics, graph)}
+        _save_db_categories(slug, categories)
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     with open(cache, "w", encoding="utf-8") as file:

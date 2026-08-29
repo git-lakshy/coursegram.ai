@@ -164,6 +164,8 @@ export function Dashboard() {
               )}
             </div>
           )}
+          <CurrentlyLearningPanel />
+          <WeeklyActivityChart slug={slug} />
           <RecommendedCourses
             courses={coursesQuery.data?.courses ?? []}
             isLoading={coursesQuery.isLoading}
@@ -176,8 +178,6 @@ export function Dashboard() {
           <ProfileCompletionCard />
           <NextBestAction slug={slug} nextTopic={nextTopic ?? null} />
           <AiAssistantPanel nextTopic={nextTopic ?? null} />
-          <CurrentlyLearningPanel />
-          <WeeklyActivityChart slug={slug} />
           <SkillSnapshot
             allTopics={topics}
             completedTopics={completedTopics}
