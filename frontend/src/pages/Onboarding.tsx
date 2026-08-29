@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowDown, Check, ChevronDown, ChevronRight, GraduationCap, Loader2 } from "lucide-react"
+import { ArrowDown, Check, ChevronDown, ChevronRight, GraduationCap, Loader2, Send } from "lucide-react"
 import { toast } from "sonner"
 
 import { MarkdownContent } from "@/components/common/MarkdownContent"
@@ -22,6 +22,52 @@ import type { GoalAnalysisResponse, PlanPhase, QuizQuestion, SkillLevel } from "
 
 const STEPS = ["Goal", "Areas", "Quiz", "Plan"] as const
 const AREA_LEVELS = ["beginner", "intermediate", "expert"] as const
+const GOAL_SUGGESTIONS = [
+  "I want to become a full stack developer",
+  "I want to master machine learning from scratch",
+  "I want to build mobile apps with React Native",
+  "I want to become a data analyst with Python",
+  "I want to learn cloud and DevOps for my team",
+]
+
+const SCRAMBLE_CHARS = "abcdefghijklmnopqrstuvwxyz"
+
+function useScrambledSentence(active: boolean): string {
+  const [text, setText] = useState(GOAL_SUGGESTIONS[0])
+  useEffect(() => {
+    if (!active) return
+    let index = 0
+    let frameTimer: number | undefined
+    const morph = () => {
+      index += 1
+      const target = GOAL_SUGGESTIONS[index % GOAL_SUGGESTIONS.length]
+      const total = 18
+      let frame = 0
+      const step = () => {
+        frame += 1
+        const settled = Math.floor((frame / total) * target.length)
+        const scrambled = target
+          .slice(settled)
+          .split("")
+          .map((ch) => (ch === " " ? " " : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]))
+          .join("")
+        setText(target.slice(0, settled) + scrambled)
+        if (frame < total) {
+          frameTimer = window.setTimeout(step, 32)
+        }
+      }
+      step()
+    }
+    const first = window.setTimeout(morph, 2800)
+    const cycle = window.setInterval(morph, 5400)
+    return () => {
+      window.clearTimeout(first)
+      window.clearInterval(cycle)
+      if (frameTimer !== undefined) window.clearTimeout(frameTimer)
+    }
+  }, [active])
+  return text
+}
 
 type ThreadItem = { id: number; role: "guide" | "user"; text: string }
 
@@ -292,24 +338,21 @@ export function Onboarding() {
     )
   }
 
+  const suggestion = useScrambledSentence(step === 0 && goalText.trim() === "" && !isBusy)
+
   return (
     <div className="relative mx-auto flex h-full max-w-3xl flex-col px-4 pt-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight text-ink-primary">Getting started</h1>
-          <p className="text-sm text-ink-secondary">A short conversation, and your path is ready.</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+      <div className="mb-3">
+        <h1 className="text-lg font-semibold tracking-tight text-ink-primary">Getting started</h1>
+        <p className="text-sm text-ink-secondary">A short conversation, and your path is ready.</p>
+        <div className="mt-3 flex items-center gap-1.5">
           {STEPS.map((label, index) => (
-            <span
-              key={label}
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                index === step ? "bg-accent-600 text-white" : index < step ? "bg-accent-50 text-accent-700" : "bg-background text-ink-muted border border-border",
-              )}
-            >
-              {label}
-            </span>
+            <div key={label} className="flex flex-1 flex-col gap-1">
+              <div className={cn("h-1 rounded-full", index <= step ? "bg-accent-600" : "bg-border")} />
+              <span className={cn("text-[10px] font-medium", index === step ? "text-ink-primary" : "text-ink-muted")}>
+                {label}
+              </span>
+            </div>
           ))}
         </div>
       </div>
@@ -517,18 +560,40 @@ export function Onboarding() {
             type="submit"
             size="icon"
             variant="accent"
-            className="h-8 w-8 shrink-0 rounded-xl"
+            className="h-9 w-9 shrink-0 rounded-full"
             disabled={isBusy || step !== 0 || goalText.trim() === ""}
             aria-label="Send goal"
           >
-            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Send
+            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
-        <p className="mt-1.5 text-center text-[10px] text-ink-muted">
-          Interests and study pace can be added later on your profile to sharpen recommendations.
-        </p>
+        {step === 0 && goalText.trim() === "" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setGoalText(suggestion)
+              inputRef.current?.focus()
+            }}
+            className="mx-auto mt-1.5 block max-w-full truncate text-center text-xs text-ink-muted transition-colors hover:text-accent-700"
+          >
+            Try: <span className="underline decoration-dotted underline-offset-2">{suggestion}</span>
+          </button>
+        ) : null}
       </div>
+
+      {isBusy && step >= 1 ? (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-64 rounded-lg border border-border bg-surface p-4 text-center shadow-sm">
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-accent-600" />
+            <p className="mt-2 text-sm font-medium text-ink-primary">
+              {step === 1 ? "Preparing your calibration quiz" : step === 2 ? "Building your personalized roadmap" : "Saving your plan"}
+            </p>
+            <p className="mt-1 text-xs text-ink-muted">
+              Interests and study pace can be added later on your profile to sharpen recommendations.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
