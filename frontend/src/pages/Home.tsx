@@ -8,7 +8,6 @@ import {
   ClipboardCheck,
   Network,
   Route,
-  Sparkles,
 } from "lucide-react"
 
 import { useAuth } from "@/hooks/useAuth"
@@ -40,8 +39,8 @@ const FAQS = [
 ]
 
 const STATS = [
-  { value: "92+", label: "Career tracks" },
-  { value: "150+", label: "Curated resources" },
+  { value: "90+", label: "Career tracks" },
+  { value: "170+", label: "Learning resources" },
   { value: "Free", label: "While in open beta" },
 ]
 
@@ -49,63 +48,60 @@ const FEATURES = [
   {
     icon: Route,
     title: "Personalized roadmaps",
-    detail: "A phased plan from where you are to job-ready, with milestones you can actually ship.",
+    detail:
+      "Describe your goal and get a phased plan with prerequisites and milestones. Topics you already know are skipped, not retaught.",
   },
   {
     icon: Network,
     title: "Skill graphs",
-    detail: "See every skill your goal requires and exactly which ones you are missing.",
-  },
-  {
-    icon: Bot,
-    title: "AI assistant",
-    detail: "Ask anything about your path and get answers grounded in your own roadmap.",
+    detail:
+      "Every track is a graph of topics and dependencies, so you see exactly which skills the role needs and which ones you are missing.",
   },
   {
     icon: BookOpen,
-    title: "Course matching",
-    detail: "Curated courses and resources mapped to each skill, so you never search blindly again.",
+    title: "Matched resources",
+    detail:
+      "Courses from Coursera, Udemy, and edX plus curated picks, ranked against your next topics with your level and format in mind. Each match shows why it was chosen.",
   },
   {
     icon: ClipboardCheck,
     title: "Assessments",
-    detail: "Quick proficiency checks calibrate the plan and skip what you already know.",
+    detail:
+      "Stage checks scored server side. Fail one and its topics return to your roadmap for another pass; pass strong and you move on.",
+  },
+  {
+    icon: Bot,
+    title: "Grounded AI assistant",
+    detail:
+      "Answers cite the actual topics in your roadmap, explain why each recommendation fits, and can update your plan after you confirm the change.",
   },
   {
     icon: ChartNoAxesCombined,
-    title: "Progress tracking",
-    detail: "Every completed milestone regenerates the roadmap around your latest progress.",
+    title: "Progress that adapts",
+    detail:
+      "Completed topics, stage feedback, and weekly skill development feed back into the plan, and regenerate it around reality.",
   },
 ]
 
 const STEPS = [
   {
     number: "01",
-    title: "Describe goal",
-    detail: "Tell Coursegram what you want to become in plain language.",
+    title: "Describe your goal",
+    detail: "One sentence in plain language is enough to start.",
   },
   {
     number: "02",
-    title: "Skill assessment",
-    detail: "A quick analysis maps what you know against what the role needs.",
+    title: "Calibrate your level",
+    detail: "A short quiz maps what you know against what the role needs.",
   },
   {
     number: "03",
-    title: "Adaptive roadmap",
-    detail: "Follow a phased plan that reshapes itself as you learn.",
+    title: "Follow your roadmap",
+    detail: "Work through the phases. The plan reshapes as you learn.",
   },
 ]
 
-const PROVIDERS = [
-  "Harvard CS50",
-  "Stanford",
-  "MIT OCW",
-  "Coursera",
-  "freeCodeCamp",
-  "3Blue1Brown",
-  "Andrew Ng",
-  "NeetCode",
-]
+const PROVIDERS = ["Coursera", "Udemy", "edX", "Harvard CS50", "freeCodeCamp", "Curated picks"]
 
 function DashboardMock() {
   return (
@@ -136,7 +132,6 @@ function DashboardMock() {
               <p className="text-xs text-ink-muted">Phase 2 of 5 · React & TypeScript</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-md bg-accent-50 px-2 py-1 text-xs font-semibold text-accent-700">
-              <Sparkles className="h-3 w-3" />
               On track
             </span>
           </div>
@@ -182,53 +177,60 @@ function DashboardMock() {
 export default function Home() {
   const { token, isLoading } = useAuth()
   const appHref = token === null ? "/login" : "/dashboard"
-  const primaryLabel = token === null ? "Start learning free" : "Open Dashboard"
+  const primaryLabel = token === null ? "Build my roadmap" : "Open Dashboard"
 
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
 
-      <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-14 md:pb-24 md:pt-20">
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-200 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700">
-              <Sparkles className="h-3 w-3" />
-              Now in open beta
-            </span>
-            <h1 className="font-display mt-5 text-4xl font-bold leading-[1.08] tracking-tight text-ink-primary md:text-5xl">
-              Learn smarter.
-              <br />
-              Achieve <span className="text-accent-600">faster.</span>
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-ink-secondary">
-              Coursegram turns a goal into a personalized roadmap, closes your
-              skill gaps, and adapts every time you learn something new.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                to={appHref}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent-700 px-5 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
-              >
-                {isLoading ? "Get Started" : primaryLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/how-it-works"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-ink-primary transition-colors hover:bg-background"
-              >
-                See how it works
-              </Link>
+      <section className="relative w-full overflow-hidden border-b border-border/60">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/coursegram-bg.png')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/92 to-background/55" />
+        <div className="relative mx-auto w-full max-w-6xl px-6 pb-16 pt-14 md:pb-24 md:pt-20">
+          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
+                Open beta
+              </p>
+              <h1 className="font-display mt-4 text-4xl font-bold leading-[1.08] tracking-tight text-ink-primary md:text-5xl">
+                Resources are everywhere.
+                <br />
+                A <span className="text-accent-600">path</span> is not.
+              </h1>
+              <p className="mt-5 max-w-md text-base leading-relaxed text-ink-secondary">
+                Courses are not the problem. Coursegram turns any learning goal
+                into a prerequisite aware roadmap, matches the right courses to
+                every step, and adapts the plan every time you learn something.
+              </p>
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Link
+                  to={appHref}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-700 px-5 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
+                >
+                  {isLoading ? "Get Started" : primaryLabel}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/how-it-works"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-ink-primary transition-colors hover:bg-background"
+                >
+                  See how it works
+                </Link>
+              </div>
+              <p className="mt-5 flex items-center gap-1.5 text-xs text-ink-muted">
+                <Check className="h-3.5 w-3.5 text-accent-600" />
+                No credit card required · Free while in beta
+              </p>
             </div>
-            <p className="mt-5 flex items-center gap-1.5 text-xs text-ink-muted">
-              <Check className="h-3.5 w-3.5 text-accent-600" />
-              No credit card required · Free while in beta
-            </p>
+            <DashboardMock />
           </div>
-          <DashboardMock />
         </div>
       </section>
 
-      <section className="border-y border-border/60 bg-surface">
+      <section className="border-b border-border/60 bg-surface">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 divide-y divide-border/60 px-6 py-8 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {STATS.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center gap-0.5 py-3 text-center">
@@ -242,10 +244,10 @@ export default function Home() {
       <section className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
         <div className="max-w-xl">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
-            Features
+            What you get
           </p>
           <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink-primary">
-            Everything you need to go from goal to job-ready
+            One system, from goal to job-ready
           </h2>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -271,7 +273,7 @@ export default function Home() {
               How it works
             </p>
             <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink-primary">
-              Three steps to a clear path
+              Three steps to your roadmap
             </h2>
           </div>
           <ol className="mt-10 grid gap-8 md:grid-cols-3 md:gap-6">
@@ -288,7 +290,7 @@ export default function Home() {
 
       <section className="mx-auto w-full max-w-6xl px-6 py-14">
         <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-ink-muted">
-          Built on trusted resources
+          Sources behind every recommendation
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
           {PROVIDERS.map((provider) => (
@@ -321,10 +323,10 @@ export default function Home() {
       <section className="mx-auto w-full max-w-6xl px-6 pb-20">
         <div className="rounded-lg border border-accent-200 bg-accent-50 px-6 py-12 text-center md:py-14">
           <h2 className="font-display mx-auto max-w-md text-2xl font-bold tracking-tight text-ink-primary md:text-3xl">
-            Your future is built one skill at a time.
+            Tell Coursegram your goal. Get the roadmap.
           </h2>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-secondary">
-            Start your personalized learning journey today. It&apos;s free while in beta.
+            A conversation, a quick quiz, and a plan that keeps adapting as you learn.
           </p>
           <Link
             to={appHref}
