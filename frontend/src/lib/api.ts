@@ -7,6 +7,7 @@ import type {
   AssessmentSubmitResponse,
   BookmarksResponse,
   BookmarkMutationResponse,
+  ChatHistoryResponse,
   ChatMessage,
   ChatResponse,
   CourseTrackStatus,
@@ -378,5 +379,13 @@ export function submitStageAssessment(
 
 export function getAssessmentHistory(token: string, slug: string): Promise<AssessmentHistoryResponse> {
   return request<AssessmentHistoryResponse>(`/assessments?slug=${encodeURIComponent(slug)}`, { token })
+}
+
+export function getChatHistory(token: string, limit = 40): Promise<ChatHistoryResponse> {
+  return request<ChatHistoryResponse>(`/assistant/history?limit=${limit}`, { token })
+}
+
+export function clearChatHistory(token: string): Promise<{ cleared: boolean }> {
+  return request<{ cleared: boolean }>("/assistant/history", { method: "DELETE", token })
 }
 

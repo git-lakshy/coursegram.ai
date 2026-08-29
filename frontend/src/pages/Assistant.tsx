@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Loader2, Sparkles } from "lucide-react"
+import { ArrowUp, Loader2, Sparkles, Trash2 } from "lucide-react"
 
 import { MarkdownContent } from "@/components/common/MarkdownContent"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
-import { ApiError, sendAssistantMessage } from "@/lib/api"
+import { ApiError, clearChatHistory, getChatHistory, sendAssistantMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/types"
 
@@ -41,8 +41,10 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 export function Assistant() {
   const { token, profile } = useAuth()
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [draft, setDraft] = useState("")
   const [isBusy, setIsBusy] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -51,8 +53,35 @@ export function Assistant() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isBusy])
 
+  useEffect(() => {
+    if (token === null || historyLoaded) return
+    setHistoryLoaded(true)
+    void (async () => {
+      try {
+        const data = await getChatHistory(token, 40)
+        setMessages(data.messages.map((item) => ({ role: item.role, content: item.content })))
+      } catch {
+        setError("Could not load your chat history.")
+      }
+    })()
+  }, [token, historyLoaded])
+
   if (token === null) {
     return null
+  }
+
+  async function clearHistory() {
+    if (token === null || isClearing) return
+    setIsClearing(true)
+    try {
+      await clearChatHistory(token)
+      setMessages([])
+      setError(null)
+    } catch {
+      setError("Could not clear your chat history.")
+    } finally {
+      setIsClearing(false)
+    }
   }
 
   async function send(text: string) {
@@ -89,11 +118,26 @@ export function Assistant() {
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col px-4 pt-5">
-      <div className="mb-4">
-        <h1 className="text-lg font-semibold tracking-tight text-ink-primary">AI Assistant</h1>
-        <p className="text-sm text-ink-secondary">
-          Grounded in your profile{profile?.target_role_slug ? ` and the ${profile.target_role_slug} track` : ""}.
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-ink-primary">AI Assistant</h1>
+          <p className="text-sm text-ink-secondary">
+            Grounded in your profile{profile?.target_role_slug ? ` and the ${profile.target_role_slug} track` : ""}.
+            {messages.length > 0 ? " Showing your recent conversation." : ""}
+          </p>
+        </div>
+        {messages.length > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void clearHistory()}
+            disabled={isClearing}
+            className="shrink-0 text-ink-muted hover:text-red-600"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {isClearing ? "Clearing..." : "Clear"}
+          </Button>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">

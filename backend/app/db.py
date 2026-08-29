@@ -107,6 +107,15 @@ CREATE TABLE IF NOT EXISTS assessment_results (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS assessment_email_idx ON assessment_results (email, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS chat_email_idx ON chat_messages (email, created_at DESC);
 """
 
 

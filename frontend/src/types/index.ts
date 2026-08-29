@@ -356,3 +356,13 @@ export type AssessmentHistoryResponse = {
   }[]
 }
 
+export type ChatHistoryMessage = {
+  role: "user" | "assistant"
+  content: string
+  created_at: string
+}
+
+export type ChatHistoryResponse = {
+  messages: ChatHistoryMessage[]
+}
+

@@ -19,6 +19,7 @@ from app.assistant import ChatRequest, ChatResponse, chat
 from app import assessments as assessments_pipeline
 from app.auth import get_current_user_email
 from app.auth_security import firebase_enabled
+from app import chat_store
 from app.categories import get_categories
 from app.coursera_client import UpstreamError, fetch_courses
 from app import course_store
@@ -544,6 +545,22 @@ def assessment_history_endpoint(
     latest = assessments_pipeline.latest_stage_results(email, slug)
     items = sorted(latest.values(), key=lambda item: item["created_at"], reverse=True)
     return {"slug": slug, "count": len(items), "results": items}
+
+
+@app.get("/assistant/history")
+def assistant_history_endpoint(
+    limit: int = Query(default=40, ge=1, le=100),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Return the learner's stored assistant conversation, oldest first."""
+    return {"messages": chat_store.recent_messages(email, limit)}
+
+
+@app.delete("/assistant/history")
+def clear_assistant_history(email: str = Depends(get_current_user_email)) -> dict:
+    """Delete the learner's stored assistant conversation."""
+    chat_store.clear(email)
+    return {"cleared": True}
 
 
 
