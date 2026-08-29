@@ -1,4 +1,4 @@
-﻿"""Background course scraper: Udemy and edX via Firecrawl into resources.
+"""Background course scraper: Udemy and edX via Firecrawl into resources.
 
 Firecrawl (free tier) renders search pages; we extract course links from
 the markdown and upsert them into the resources JSONB table so the
