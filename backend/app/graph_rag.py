@@ -117,6 +117,13 @@ def _learner_state_block(email: str, profile, slug: str | None) -> str:
                 f"Roadmap position: {done}/{total_topics} topics completed"
                 + (f", current stage: {current['name']}" if current else ", all stages complete")
             )
+            parts.append(
+                "Stages (position. name, completed/total): "
+                + "; ".join(
+                    f"{stage['position']}. {stage['name']} ({stage['completed_count']}/{len(stage['topics'])})"
+                    for stage in stages
+                )
+            )
             results = latest_stage_results(email, slug)
             assessment_bits = [
                 f"{stage}: {result['score']}/{result['total']} {'passed' if result['passed'] else 'failed'}"

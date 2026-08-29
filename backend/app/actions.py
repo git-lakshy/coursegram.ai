@@ -6,6 +6,7 @@ learner's real data, applies it through the existing stores, and records
 an audit event. Ambiguous or invalid proposals are rejected, never guessed.
 """
 
+import difflib
 import logging
 import uuid
 
@@ -79,6 +80,30 @@ def _graph_topics(graph: dict) -> list[str]:
     return [str(node["name"]) for node in graph.get("nodes", [])]
 
 
+def _resolve_stage(stages: list[dict], action: dict) -> dict:
+    """Find a stage by position first, then by name (assistant numbering
+    can drift from the real plan)."""
+    position = action.get("stage_position")
+    if isinstance(position, int):
+        stage = next((item for item in stages if item["position"] == position), None)
+        if stage is not None:
+            return stage
+    name = str(action.get("stage_name", "")).strip().lower()
+    if name:
+        stage = next(
+            (item for item in stages if item["name"].strip().lower() == name),
+            None,
+        )
+        if stage is not None:
+            return stage
+        close = difflib.get_close_matches(
+            name, [item["name"].strip().lower() for item in stages], n=1, cutoff=0.8
+        )
+        if close:
+            return next(item for item in stages if item["name"].strip().lower() == close[0])
+    raise ActionError("Unknown stage position")
+
+
 async def _execute_one(email: str, profile, action: dict) -> dict:
     action_type = action.get("type")
     slug = _require_track(profile)
@@ -111,11 +136,8 @@ async def _execute_one(email: str, profile, action: dict) -> dict:
         return {"summary": f"Marked {len(topics)} topics for revisiting: {', '.join(topics)}", "topics": topics}
 
     if action_type == "mark_stage_completed":
-        position = action.get("stage_position")
         stages = stages_for_learner(email, slug)
-        stage = next((item for item in stages if item["position"] == position), None)
-        if stage is None:
-            raise ActionError("Unknown stage position")
+        stage = _resolve_stage(stages, action)
         from app.progress_store import get_progress, save_progress
 
         completed = get_progress(email, slug)
@@ -160,12 +182,15 @@ async def _execute_one(email: str, profile, action: dict) -> dict:
         phases = personalized.get("phases")
         if not isinstance(phases, list) or not phases:
             raise ActionError("No personalized plan to edit")
-        position = action.get("stage_position")
-        if not isinstance(position, int) or not 1 <= position <= len(phases):
-            raise ActionError("Unknown stage position")
-        removed = phases.pop(position - 1)
+        stages = [
+            {"position": index + 1, "name": str(phase.get("name", ""))}
+            for index, phase in enumerate(phases)
+            if isinstance(phase, dict)
+        ]
+        stage = _resolve_stage(stages, action)
+        removed = phases.pop(stage["position"] - 1)
         save_profile(email, profile)
-        return {"summary": f"Removed stage '{removed.get('name', position)}'"}
+        return {"summary": f"Removed stage '{removed.get('name', stage['position'])}'"}
 
     if action_type == "set_skill_level":
         level = str(action.get("level", "")).strip().lower()
@@ -228,14 +253,11 @@ async def _execute_one(email: str, profile, action: dict) -> dict:
         return {"summary": f"Generated project '{definition['title']}' and added it to your projects", "project_id": project_id}
 
     if action_type == "generate_assessment":
-        position = action.get("stage_position")
         stages = stages_for_learner(email, slug)
-        stage = next((item for item in stages if item["position"] == position), None)
-        if stage is None:
-            raise ActionError("Unknown stage position")
+        stage = _resolve_stage(stages, action)
         if not stage["assessable"]:
             raise ActionError("That stage is not assessable yet")
-        result = await generate_stage_assessment(email, slug, position)
+        result = await generate_stage_assessment(email, slug, stage["position"])
         record_event(email, "assistant_action", {"action": action_type, "stage_position": position})
         return {
             "summary": f"Assessment ready for stage '{result['stage']}' ({len(result['questions'])} questions)",

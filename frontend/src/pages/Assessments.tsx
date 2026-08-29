@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CheckCircle2, ClipboardCheck, Loader2, Lock, RotateCcw, XCircle } from "lucide-react"
+import { CheckCircle2, ClipboardCheck, Loader2, Lock, RotateCcw, Sparkles, XCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { ErrorState } from "@/components/common/ErrorState"
@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useLearning } from "@/hooks/useLearning"
 import { useRoadmapSlugs } from "@/hooks/useRoadmaps"
 import {
+  executeAssistantActions,
   generateStageAssessment,
   getAssessmentStages,
   submitStageAssessment,
@@ -110,6 +111,38 @@ function ActiveAssessment({
   const { statusMap: learningStatus, setStatus: setTrackStatus } = useLearning()
   const [answers, setAnswers] = useState<number[]>(questions.map(() => -1))
   const [result, setResult] = useState<AssessmentSubmitResponse | null>(null)
+  const [markPrompt, setMarkPrompt] = useState(false)
+
+  const remainingTopics = stage.topics.length - stage.completed_count
+
+  const markCompleted = useMutation({
+    mutationFn: () =>
+      executeAssistantActions(token!, [
+        { type: "mark_stage_completed", stage_position: stage.position, stage_name: stage.name },
+      ]),
+    onSuccess: async (data) => {
+      if (data.results[0]?.applied) {
+        toast.success("Stage marked completed")
+      } else {
+        toast.error(data.results[0]?.reason ?? "Could not mark the stage completed")
+      }
+      setMarkPrompt(false)
+      await queryClient.invalidateQueries({ queryKey: ["progress", slug] })
+      await queryClient.invalidateQueries({ queryKey: ["next-with-resources", slug] })
+      await queryClient.invalidateQueries({ queryKey: ["assessment-stages", slug] })
+    },
+    onError: () => {
+      toast.error("Could not mark the stage completed")
+    },
+  })
+
+  function handleSubmit(data: AssessmentSubmitResponse) {
+    setResult(data)
+    const ratio = data.total > 0 ? data.score / data.total : 0
+    if (data.passed && ratio >= 0.8 && remainingTopics > 0) {
+      setMarkPrompt(true)
+    }
+  }
 
   const submitMutation = useMutation({
     mutationFn: () =>
@@ -123,7 +156,7 @@ function ActiveAssessment({
         })),
       ),
     onSuccess: async (data) => {
-      setResult(data)
+      handleSubmit(data)
       await queryClient.invalidateQueries({ queryKey: ["assessment-stages", slug] })
       await queryClient.invalidateQueries({ queryKey: ["progress", slug] })
       await queryClient.invalidateQueries({ queryKey: ["next-with-resources", slug] })
@@ -150,6 +183,23 @@ function ActiveAssessment({
           </span>
         </div>
         <p className="text-xs leading-relaxed text-ink-secondary">{result.summary}</p>
+        {markPrompt && remainingTopics > 0 ? (
+          <div className="rounded-md border border-accent-600 bg-accent-50/40 p-2.5">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-accent-800">
+              <Sparkles className="h-3.5 w-3.5" />
+              Strong pass. Mark the remaining {remainingTopics} topics of this stage as completed?
+            </p>
+            <div className="mt-2 flex gap-2">
+              <Button variant="accent" size="sm" onClick={() => markCompleted.mutate()} disabled={markCompleted.isPending}>
+                {markCompleted.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Mark completed
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setMarkPrompt(false)}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {result.revisit_topics.length > 0 ? (
           <p className="rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-2 text-xs text-amber-800">
             Marked for revisiting: {result.revisit_topics.join(", ")}. The roadmap moved these back into your queue.
