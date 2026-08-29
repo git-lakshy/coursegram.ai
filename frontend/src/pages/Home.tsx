@@ -101,79 +101,6 @@ const STEPS = [
   },
 ]
 
-const PROVIDERS = ["Coursera", "Udemy", "edX", "Harvard CS50", "freeCodeCamp", "Curated picks"]
-
-function DashboardMock() {
-  return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-subtle">
-      <div className="flex items-center gap-2 border-b border-border/70 bg-background px-4 py-2.5">
-        <span className="h-2 w-2 rounded-full bg-border" />
-        <span className="h-2 w-2 rounded-full bg-border" />
-        <span className="h-2 w-2 rounded-full bg-border" />
-        <span className="ml-3 text-xs font-medium text-ink-muted">app.coursegram.com/dashboard</span>
-      </div>
-      <div className="flex">
-        <div className="hidden w-36 shrink-0 flex-col gap-1 border-r border-border/70 p-3 sm:flex">
-          {["Overview", "Roadmap", "Skills", "Courses", "Assessments"].map((item, i) => (
-            <span
-              key={item}
-              className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${
-                i === 1 ? "bg-accent-50 text-accent-700" : "text-ink-secondary"
-              }`}
-            >
-              {item}
-            </span>
-          ))}
-        </div>
-        <div className="flex-1 space-y-4 p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-display text-sm font-semibold text-ink-primary">Frontend Engineer</p>
-              <p className="text-xs text-ink-muted">Phase 2 of 5 · React & TypeScript</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-md bg-accent-50 px-2 py-1 text-xs font-semibold text-accent-700">
-              On track
-            </span>
-          </div>
-          <div className="space-y-2.5">
-            {[
-              { label: "HTML & CSS", pct: "100%" },
-              { label: "JavaScript fundamentals", pct: "82%" },
-              { label: "React", pct: "54%" },
-              { label: "TypeScript", pct: "18%" },
-            ].map((row) => (
-              <div key={row.label}>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-ink-secondary">{row.label}</span>
-                  <span className="font-medium text-ink-muted">{row.pct}</span>
-                </div>
-                <div className="mt-1 h-1.5 rounded-full bg-background">
-                  <div
-                    className="h-full rounded-full bg-accent-600"
-                    style={{ width: row.pct }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-2.5 pt-1">
-            {[
-              { value: "12", label: "Milestones done" },
-              { value: "7", label: "In progress" },
-              { value: "68%", label: "Track complete" },
-            ].map((chip) => (
-              <div key={chip.label} className="rounded-md border border-border bg-background px-2.5 py-2">
-                <p className="font-display text-sm font-semibold text-ink-primary">{chip.value}</p>
-                <p className="truncate text-[11px] text-ink-muted">{chip.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function Home() {
   const { token, isLoading } = useAuth()
   const appHref = token === null ? "/login" : "/dashboard"
@@ -183,49 +110,46 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <SiteNav />
 
-      <section className="relative w-full overflow-hidden border-b border-border/60">
+      <section className="relative flex w-full items-center overflow-hidden border-b border-border/60">
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          className="absolute inset-0 scale-110 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: "url('/coursegram-bg.png')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/92 to-background/55" />
-        <div className="relative mx-auto w-full max-w-6xl px-6 pb-16 pt-14 md:pb-24 md:pt-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
-                Open beta
-              </p>
-              <h1 className="font-display mt-4 text-4xl font-bold leading-[1.08] tracking-tight text-ink-primary md:text-5xl">
-                Resources are everywhere.
-                <br />
-                A <span className="text-accent-600">path</span> is not.
-              </h1>
-              <p className="mt-5 max-w-md text-base leading-relaxed text-ink-secondary">
-                Courses are not the problem. Coursegram turns any learning goal
-                into a prerequisite aware roadmap, matches the right courses to
-                every step, and adapts the plan every time you learn something.
-              </p>
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Link
-                  to={appHref}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent-700 px-5 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
-                >
-                  {isLoading ? "Get Started" : primaryLabel}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  to="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-ink-primary transition-colors hover:bg-background"
-                >
-                  See how it works
-                </Link>
-              </div>
-              <p className="mt-5 flex items-center gap-1.5 text-xs text-ink-muted">
-                <Check className="h-3.5 w-3.5 text-accent-600" />
-                No credit card required · Free while in beta
-              </p>
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/35" />
+        <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-center px-6 py-16">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
+              Open beta
+            </p>
+            <h1 className="font-display mt-4 text-4xl font-bold leading-[1.08] tracking-tight text-ink-primary md:text-5xl">
+              Resources are everywhere.
+              <br />
+              A <span className="text-accent-600">path</span> is not.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-secondary">
+              Courses are not the problem. Coursegram turns any learning goal
+              into a prerequisite aware roadmap, matches the right courses to
+              every step, and adapts the plan every time you learn something.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                to={appHref}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent-700 px-5 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
+              >
+                {isLoading ? "Get Started" : primaryLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/how-it-works"
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-ink-primary transition-colors hover:bg-background"
+              >
+                See how it works
+              </Link>
             </div>
-            <DashboardMock />
+            <p className="mt-6 flex items-center gap-1.5 text-sm text-ink-secondary">
+              <Check className="h-4 w-4 text-accent-600" />
+              All resources are free in open beta. No credit card required.
+            </p>
           </div>
         </div>
       </section>
@@ -288,23 +212,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-14">
-        <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-ink-muted">
-          Sources behind every recommendation
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
-          {PROVIDERS.map((provider) => (
-            <span
-              key={provider}
-              className="rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:border-ink-muted hover:text-ink-primary"
-            >
-              {provider}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-3xl px-6 pb-16">
+      <section className="mx-auto w-full max-w-3xl px-6 pb-20">
         <h2 className="font-display text-center text-2xl font-bold tracking-tight text-ink-primary">
           Frequently asked questions
         </h2>
@@ -318,24 +226,6 @@ export default function Home() {
             </AccordionItem>
           ))}
         </Accordion>
-      </section>
-
-      <section className="mx-auto w-full max-w-6xl px-6 pb-20">
-        <div className="rounded-lg border border-accent-200 bg-accent-50 px-6 py-12 text-center md:py-14">
-          <h2 className="font-display mx-auto max-w-md text-2xl font-bold tracking-tight text-ink-primary md:text-3xl">
-            Tell Coursegram your goal. Get the roadmap.
-          </h2>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-secondary">
-            A conversation, a quick quiz, and a plan that keeps adapting as you learn.
-          </p>
-          <Link
-            to={appHref}
-            className="mt-7 inline-flex items-center gap-2 rounded-lg bg-accent-700 px-6 py-2.5 text-sm font-semibold text-surface transition-colors hover:bg-accent-600"
-          >
-            {isLoading ? "Get Started" : primaryLabel}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
       </section>
 
       <SiteFooter />
