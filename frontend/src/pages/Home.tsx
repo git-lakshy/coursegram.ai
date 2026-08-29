@@ -41,7 +41,7 @@ const FAQS = [
 const STATS = [
   { value: "90+", label: "Career tracks" },
   { value: "170+", label: "Learning resources" },
-  { value: "Free", label: "While in open beta" },
+  { value: "Free", label: "Just Sign up and use" },
 ]
 
 const FEATURES = [
@@ -118,9 +118,6 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/35" />
         <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-center px-6 py-16">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
-              Open beta
-            </p>
             <h1 className="font-display mt-4 text-4xl font-bold leading-[1.08] tracking-tight text-ink-primary md:text-5xl">
               Resources are everywhere.
               <br />
@@ -148,7 +145,7 @@ export default function Home() {
             </div>
             <p className="mt-6 flex items-center gap-1.5 text-sm text-ink-secondary">
               <Check className="h-4 w-4 text-accent-600" />
-              All resources are free in open beta. No credit card required.
+              All resources are free. Just sign up and start using.
             </p>
           </div>
         </div>
