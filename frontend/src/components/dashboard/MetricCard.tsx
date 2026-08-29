@@ -13,7 +13,7 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, icon: Icon, hint, tone = "neutral" }: MetricCardProps) {
   return (
-    <Card className="p-3.5">
+    <Card className="flex h-full flex-col p-3.5">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-ink-secondary">{label}</p>
         <div
@@ -25,7 +25,7 @@ export function MetricCard({ label, value, icon: Icon, hint, tone = "neutral" }:
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>
-      <p className="mt-2 text-2xl font-semibold text-ink-primary">{value}</p>
+      <p className="mt-1.5 truncate text-2xl font-semibold leading-tight text-ink-primary">{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-ink-muted">{hint}</p> : null}
     </Card>
   )

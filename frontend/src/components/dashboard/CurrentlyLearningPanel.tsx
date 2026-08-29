@@ -1,4 +1,4 @@
-import { X } from "lucide-react"
+import { BookOpen, X } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,9 +13,11 @@ export function CurrentlyLearningPanel() {
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Currently learning
         </p>
-        <Link to="/courses" className="text-xs font-medium text-accent-700 hover:underline">
-          Find courses
-        </Link>
+        {courses.length > 0 ? (
+          <Link to="/courses" className="text-xs font-medium text-accent-700 hover:underline">
+            Find courses
+          </Link>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -32,9 +34,13 @@ export function CurrentlyLearningPanel() {
           </button>
         </p>
       ) : courses.length === 0 ? (
-        <p className="py-3 text-center text-xs text-ink-muted">
-          Pick a course and mark it as learning to see it here.
-        </p>
+        <div className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border px-4 py-5 text-center">
+          <BookOpen className="h-4 w-4 text-ink-muted" />
+          <p className="text-xs text-ink-secondary">Nothing tracked yet.</p>
+          <Link to="/courses" className="text-xs font-medium text-accent-700 hover:underline">
+            Find courses
+          </Link>
+        </div>
       ) : (
         <div className="space-y-2">
           {courses.map((course) => (

@@ -50,11 +50,15 @@ export function SkillSnapshot({ allTopics, completedTopics, isLoading, slug }: S
           description="Select a roadmap to see your skill breakdown here."
         />
       ) : (
-        <div className="h-56 w-full rounded-lg border border-border bg-surface p-2">
+        <div className="h-52 w-full rounded-lg border border-border bg-surface p-3">
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={chartData}>
+            <RadarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
               <PolarGrid stroke="#E5E7EB" />
-              <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: "#6B7280" }} />
+              <PolarAngleAxis
+                dataKey="skill"
+                tick={{ fontSize: 10, fill: "#6B7280" }}
+                tickFormatter={(value: string) => (value.length > 14 ? `${value.slice(0, 13)}...` : value)}
+              />
               <Radar name="Required" dataKey="required" stroke="#9CA3AF" fill="#9CA3AF" fillOpacity={0.08} />
               <Radar name="Your level" dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.25} />
             </RadarChart>

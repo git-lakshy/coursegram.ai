@@ -11,6 +11,7 @@ import { ProfileCompletionCard } from "@/components/dashboard/ProfileCompletionC
 import { RecommendedCourses } from "@/components/dashboard/RecommendedCourses"
 import { ResourceCard } from "@/components/resources/ResourceCard"
 import { RoadmapProgress } from "@/components/dashboard/RoadmapProgress"
+import { SectionHeader } from "@/components/common/SectionHeader"
 import { SkillSnapshot } from "@/components/dashboard/SkillSnapshot"
 import { UpcomingItems } from "@/components/dashboard/UpcomingItems"
 import { WeeklyActivityChart } from "@/components/dashboard/WeeklyActivityChart"
@@ -94,7 +95,7 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-ink-primary">
             {greeting()}, {displayName}
@@ -120,15 +121,15 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Overall progress" value={`${percent}%`} icon={ChartNoAxesCombined} tone="accent" />
         <MetricCard label="Skills learned" value={`${completedCount} / ${totalTopics}`} icon={Route} />
         <MetricCard label="Next up" value={nextTopic ?? "All caught up"} icon={Target} />
         <MetricCard label="Skill gaps" value={`${totalTopics - completedCount} to go`} icon={Waypoints} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <div className="grid items-start gap-4 lg:grid-cols-10">
+        <div className="space-y-4 lg:col-span-7">
           <RoadmapProgress
             stages={stages}
             completedTopics={completedTopics}
@@ -137,10 +138,13 @@ export function Dashboard() {
             onRetry={() => roadmapQuery.refetch()}
           />
           {matchedResourcesQuery.isError || matchedResources.length === 0 ? null : (
-            <div className="rounded-lg border border-border bg-surface p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                Matched resources
-              </p>
+            <div>
+              <SectionHeader
+                title="Matched resources"
+                action={
+                  <span className="text-[11px] text-ink-muted">From your next topics</span>
+                }
+              />
               {matchedResourcesQuery.isLoading ? (
                 <div className="grid grid-cols-2 gap-2">
                   {[0, 1, 2, 3].map((key) => (
@@ -148,9 +152,9 @@ export function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="scroll-slim flex gap-2 overflow-x-auto rounded-lg border border-border bg-surface p-2">
                   {matchedResources.map((resource) => (
-                    <div key={resource.id} className="w-56 shrink-0">
+                    <div key={resource.id} className="w-52 shrink-0">
                       <ResourceCard
                         resource={resource}
                         saved={bookmarkedIds.has(resource.id)}
@@ -174,7 +178,7 @@ export function Dashboard() {
             onRetry={() => coursesQuery.refetch()}
           />
         </div>
-        <div className="space-y-5">
+        <div className="space-y-4 lg:col-span-3">
           <ProfileCompletionCard />
           <NextBestAction slug={slug} nextTopic={nextTopic ?? null} />
           <AiAssistantPanel nextTopic={nextTopic ?? null} />
@@ -185,13 +189,6 @@ export function Dashboard() {
             slug={slug}
           />
           <UpcomingItems topics={upcomingTopics} />
-          <Link
-            to="/skill-graph"
-            className="flex items-center justify-between rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-ink-primary transition-colors hover:bg-background"
-          >
-            View full skill graph
-            <ChartNoAxesCombined className="h-4 w-4 text-ink-muted" />
-          </Link>
         </div>
       </div>
     </div>

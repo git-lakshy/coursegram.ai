@@ -54,7 +54,7 @@ export function RoadmapProgress({ stages, completedTopics, isLoading, isError, o
             {stages.map((stage) => (
               <span
                 key={stage.id}
-                className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-ink-secondary"
+                className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-ink-secondary"
               >
                 {stage.name}
               </span>
