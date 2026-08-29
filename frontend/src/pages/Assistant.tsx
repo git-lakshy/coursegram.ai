@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { ArrowUp, Check, Loader2, Sparkles, Trash2, X } from "lucide-react"
+import { ArrowUp, ChevronDown, Check, Loader2, Sparkles, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { MarkdownContent } from "@/components/common/MarkdownContent"
@@ -182,12 +182,30 @@ export function Assistant() {
   const [isBusy, setIsBusy] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isNearBottom, setIsNearBottom] = useState(true)
+  const [justSent, setJustSent] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    if (isNearBottom || justSent) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      setJustSent(false)
+    }
+  }, [messages, isBusy, pending, isNearBottom, justSent])
+
+  function handleScroll() {
+    const container = scrollRef.current
+    if (container === null) return
+    const distance = container.scrollHeight - container.scrollTop - container.clientHeight
+    setIsNearBottom(distance < 120)
+  }
+
+  function scrollToBottom() {
+    setJustSent(true)
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, isBusy])
+  }
 
   useEffect(() => {
     if (token === null || historyLoaded) return
@@ -226,6 +244,7 @@ export function Assistant() {
     setError(null)
     setIsBusy(true)
     setPending(null)
+    setJustSent(true)
     const history = messages
     setMessages((previous) => [...previous, { role: "user", content: trimmed }])
     setDraft("")
@@ -257,7 +276,7 @@ export function Assistant() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col px-4 pt-5">
+    <div className="relative mx-auto flex h-full max-w-3xl flex-col px-4 pt-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-ink-primary">AI Assistant</h1>
@@ -280,7 +299,11 @@ export function Assistant() {
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="scroll-slim relative min-h-0 flex-1 space-y-4 overflow-y-auto pb-4"
+      >
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-700">
@@ -323,6 +346,17 @@ export function Assistant() {
         ) : null}
         <div ref={bottomRef} />
       </div>
+
+      {!isNearBottom && messages.length > 0 ? (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          aria-label="Jump to latest message"
+          className="absolute bottom-24 right-6 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-ink-secondary shadow-sm transition-colors hover:border-accent-600 hover:text-accent-700"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      ) : null}
 
       {error !== null ? <p className="pb-2 text-center text-xs text-red-600">{error}</p> : null}
 
