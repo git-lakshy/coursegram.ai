@@ -117,6 +117,36 @@ def events_this_month(user_email: str) -> int:
     return int(row or 0)
 
 
+def weekly_topic_completions(user_email: str, slug: str, weeks: int = 8) -> list[dict]:
+    """Completed topics per ISO week for the last N weeks, oldest first.
+
+    Weeks with no completions are reported as zero so the frontend can
+    render a truthful timeline.
+    """
+    import datetime
+
+    engine = get_engine()
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT date_trunc('week', created_at)::date AS week, count(*) "
+                "FROM events WHERE email = :email AND type = 'topic_completed' "
+                "AND detail->>'slug' = :slug "
+                "AND created_at >= date_trunc('week', now()) - make_interval(weeks => :weeks - 1) "
+                "GROUP BY week ORDER BY week"
+            ),
+            {"email": user_email, "slug": slug, "weeks": weeks},
+        ).fetchall()
+    counts = {row[0]: int(row[1]) for row in rows}
+    today = datetime.date.today()
+    this_week = today - datetime.timedelta(days=today.weekday())
+    out = []
+    for offset in range(weeks - 1, -1, -1):
+        week = this_week - datetime.timedelta(weeks=offset)
+        out.append({"week_start": week.isoformat(), "count": counts.get(week, 0)})
+    return out
+
+
 def latest_stage_feedback(user_email: str, slug: str) -> list[dict]:
     """Latest difficulty feedback per stage for one roadmap, ordered by position."""
     engine = get_engine()

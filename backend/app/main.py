@@ -236,6 +236,7 @@ def regenerate_roadmap(
             goal_text=goal_text,
             area_levels=area_levels,
             known_topics=known,
+            weekly_hours=profile.weekly_hours,
         )
     )
     record_event(email, "plan_generated", {"slug": slug, "regenerated": True})
@@ -602,6 +603,18 @@ def get_topic_progress(
 ) -> dict:
     """Return the learner's completed topics for a roadmap."""
     return {"slug": slug, "completed": get_progress(email, slug)}
+
+
+@app.get("/progress/{slug}/timeline")
+def get_progress_timeline(
+    slug: str,
+    weeks: int = Query(default=8, ge=1, le=26),
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Completed topics per week for the skill development timeline."""
+    from app.event_store import weekly_topic_completions
+
+    return {"slug": slug, "weeks": weekly_topic_completions(email, slug, weeks)}
 
 
 @app.put("/progress/{slug}")

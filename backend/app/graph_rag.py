@@ -199,7 +199,14 @@ def build_assistant_context(email: str, profile, message: str) -> str:
         parts.append(state_block)
 
     known = ", ".join(profile.known_topics[:30]) or "unknown"
-    parts.append(f"Profile facts: level {profile.skill_level}, track {slug or 'not set'}, already knows: {known}.")
+    profile_bits = [f"level {profile.skill_level}, track {slug or 'not set'}, already knows: {known}"]
+    if profile.interests:
+        profile_bits.append(f"interests: {', '.join(profile.interests[:8])}")
+    if profile.weekly_hours:
+        profile_bits.append(f"about {profile.weekly_hours} study hours per week")
+    if profile.preferred_formats:
+        profile_bits.append(f"prefers: {', '.join(profile.preferred_formats[:5])}")
+    parts.append("Profile facts: " + ", ".join(profile_bits) + ".")
 
     rolling = context_summary_for(email)
     if rolling:

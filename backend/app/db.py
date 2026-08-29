@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     plan TEXT NOT NULL DEFAULT 'free',
     target_role_slug TEXT,
     known_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
+    interests JSONB NOT NULL DEFAULT '[]'::jsonb,
+    weekly_hours INT,
+    preferred_formats JSONB NOT NULL DEFAULT '[]'::jsonb,
     onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
     personalized_roadmap JSONB,
     learner_context JSONB,
@@ -51,6 +54,9 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS learner_context JSONB;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS interests JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weekly_hours INT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_formats JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS progress (
     email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,

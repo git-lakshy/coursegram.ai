@@ -304,6 +304,35 @@ def related_topics(graph: dict, topic_id: str) -> list[dict]:
     return resolved
 
 
+def order_topics_topologically(graph: dict, topics: list[str]) -> list[str]:
+    """Stable sort topic names by the graph's topological order.
+
+    Topics missing from the graph keep their relative order at the end,
+    so an LLM plan can never list a topic before its prerequisites.
+    """
+    order = {str(node["name"]): node["order"] for node in graph.get("nodes", [])}
+    known = [topic for topic in topics if topic in order]
+    unknown = [topic for topic in topics if topic not in order]
+    return sorted(known, key=lambda topic: order[topic]) + unknown
+
+
+def enforce_phase_order(graph: dict, phases: list[dict]) -> list[dict]:
+    """Reorder phase topics so prerequisites always come first.
+
+    Phase boundaries are preserved; only the topics inside the flattened
+    sequence are stable sorted topologically.
+    """
+    sizes = [len(phase["topics"]) for phase in phases]
+    flat = [topic for phase in phases for topic in phase["topics"]]
+    ordered = order_topics_topologically(graph, flat)
+    chunks = []
+    index = 0
+    for size in sizes:
+        chunks.append(ordered[index : index + size])
+        index += size
+    return [dict(phase, topics=chunk) for phase, chunk in zip(phases, chunks)]
+
+
 def next_topics(graph: dict, mastered_ids: set[str], limit: int = 5) -> list[dict]:
     """Return the next topics, respecting prerequisites and choice groups."""
     mastered_lower = {str(m).lower() for m in mastered_ids}

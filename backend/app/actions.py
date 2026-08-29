@@ -23,6 +23,12 @@ from app.resources_store import search_resources
 
 logger = logging.getLogger("app.actions")
 
+
+def datetime_now_iso() -> str:
+    import datetime
+
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
 MAX_ACTIONS_PER_TURN = 3
 MAX_TOPICS_PER_ACTION = 20
 MAX_STAGE_TOPICS = 15
@@ -40,6 +46,7 @@ ACTION_TYPES = {
     "set_project_state",
     "generate_project",
     "generate_assessment",
+    "generate_plan_from_chat",
 }
 
 LEVELS = ("beginner", "intermediate", "advanced")
@@ -106,6 +113,40 @@ def _resolve_stage(stages: list[dict], action: dict) -> dict:
 
 async def _execute_one(email: str, profile, action: dict) -> dict:
     action_type = action.get("type")
+
+    if action_type == "generate_plan_from_chat":
+        goal = str(action.get("goal", "")).strip()
+        if len(goal) < 10:
+            raise ActionError("A short description of the goal is required")
+        from app.onboarding import GoalRequest, PlanRequest, analyze_goal, generate_plan
+
+        analyzed = await analyze_goal(GoalRequest(goal_text=goal))
+        plan = await generate_plan(
+            PlanRequest(
+                slug=analyzed.track_slug,
+                goal_text=goal,
+                area_levels={area.name: profile.skill_level for area in analyzed.areas},
+                known_topics=list(profile.known_topics),
+                weekly_hours=profile.weekly_hours,
+            )
+        )
+        profile.target_role_slug = analyzed.track_slug
+        profile.background = goal if not profile.background.strip() else profile.background
+        profile.onboarding_complete = True
+        profile.personalized_roadmap = {
+            "slug": plan.slug,
+            "summary": plan.summary,
+            "phases": [phase.model_dump() for phase in plan.phases],
+            "created_at": datetime_now_iso(),
+        }
+        save_profile(email, profile)
+        record_event(email, "plan_generated", {"slug": plan.slug, "source": "assistant"})
+        record_event(email, "assistant_action", {"action": action_type, "slug": plan.slug})
+        return {
+            "summary": f"Created a {plan.slug} plan with {len(plan.phases)} stages from your goal",
+            "slug": plan.slug,
+        }
+
     slug = _require_track(profile)
     try:
         graph = load_roadmap_graph(slug)
@@ -258,7 +299,7 @@ async def _execute_one(email: str, profile, action: dict) -> dict:
         if not stage["assessable"]:
             raise ActionError("That stage is not assessable yet")
         result = await generate_stage_assessment(email, slug, stage["position"])
-        record_event(email, "assistant_action", {"action": action_type, "stage_position": position})
+        record_event(email, "assistant_action", {"action": action_type, "stage_position": stage["position"]})
         return {
             "summary": f"Assessment ready for stage '{result['stage']}' ({len(result['questions'])} questions)",
             "stage": result["stage"],

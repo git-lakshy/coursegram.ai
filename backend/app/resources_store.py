@@ -127,15 +127,18 @@ def search_resources(
     free: bool | None = None,
     resource_types: list[str] | None = None,
     limit: int = 6,
+    boost_types: list[str] | None = None,
 ) -> list[dict]:
     """Rank resources for target topics and a learner level.
 
-    Returns top matches with score and matched topic tags, applying a
-    greedy provider diversity penalty so one provider cannot dominate.
+    Returns top matches with score, matched topic tags, and a short
+    human readable reason, applying a greedy provider diversity penalty
+    so one provider cannot dominate.
     """
     _ensure_loaded()
     if not _docs:
         return []
+    boost = {str(item).lower() for item in (boost_types or [])}
 
     query_tokens: list[str] = []
     normalized_topics: list[str] = []
@@ -184,14 +187,18 @@ def search_resources(
         if not matched and not keyword_hits and phrase_hits == 0:
             continue
         coverage = len(matched) / len(topic_set) if topic_set else 0.0
+        level_match = _level_match(str(doc.get("level", "beginner")), level)
+        free_bonus = bool(doc.get("free"))
+        format_bonus = str(doc.get("type", "")).lower() in boost
         score = (
             3.0 * coverage
             + 0.5 * len(keyword_hits)
             + 1.0 * phrase_hits
             + _bm25_lite(query_tokens, resource_id)
-            + 0.8 * _level_match(str(doc.get("level", "beginner")), level)
+            + 0.8 * level_match
             + 0.5 * _rating_norm(float(doc.get("rating", 0)))
-            + (0.4 if doc.get("free") else 0.0)
+            + (0.4 if free_bonus else 0.0)
+            + (0.6 if format_bonus else 0.0)
         )
         scored.append((score, resource_id, matched))
 
@@ -209,6 +216,17 @@ def search_resources(
         if provider_counts.get(provider, 0) >= 2 or type_counts.get(resource_type, 0) >= 3:
             continue
         adjusted = score - provider_penalty - type_penalty
+        reason_bits: list[str] = []
+        if matched:
+            reason_bits.append("matches " + ", ".join(matched[:3]))
+        doc_level = str(doc.get("level", "beginner"))
+        if doc_level == level:
+            reason_bits.append(f"{level} level")
+        if doc.get("free"):
+            reason_bits.append("free")
+        rating = doc.get("rating")
+        if rating:
+            reason_bits.append(f"rated {float(rating):.1f}")
         results.append(
             {
                 "id": resource_id,
@@ -217,12 +235,13 @@ def search_resources(
                 "type": resource_type,
                 "url": doc.get("url", ""),
                 "free": bool(doc.get("free")),
-                "level": doc.get("level", "beginner"),
+                "level": doc_level,
                 "duration_hours": doc.get("duration_hours", 0),
                 "rating": doc.get("rating", 0),
                 "description": doc.get("description", ""),
                 "matched_topics": sorted(set(matched + keyword_hits)),
                 "score": round(adjusted, 3),
+                "reason": "; ".join(reason_bits) if reason_bits else f"{provider} {resource_type}",
             }
         )
         provider_counts[provider] = provider_counts.get(provider, 0) + 1
@@ -261,6 +280,7 @@ def next_topics_with_resources(
     ready = next_topics(graph, mastered, limit=limit_topics)
     level = str(profile.skill_level or "beginner")
     track_title = str(graph.get("title", slug))
+    formats = [str(item).lower() for item in (profile.preferred_formats or [])]
     return {
         "slug": slug,
         "next": [
@@ -276,6 +296,7 @@ def next_topics_with_resources(
                     + [node["domain"], track_title],
                     level=level,
                     limit=resources_per_topic,
+                    boost_types=formats,
                 ),
             }
             for node in ready

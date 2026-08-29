@@ -17,7 +17,12 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 from app import llm
-from app.roadmap_store import RoadmapNotFound, list_roadmap_slugs, load_roadmap_topics
+from app.roadmap_store import (
+    RoadmapNotFound,
+    enforce_phase_order,
+    list_roadmap_slugs,
+    load_roadmap_topics,
+)
 
 logger = logging.getLogger("app.onboarding")
 
@@ -44,6 +49,7 @@ class PlanRequest(BaseModel):
     goal_text: str = ""
     area_levels: dict[str, str] = Field(default_factory=dict)
     known_topics: list[str] = Field(default_factory=list)
+    weekly_hours: int | None = Field(default=None, ge=1, le=80)
 
 
 class PlanPhase(BaseModel):
@@ -191,6 +197,12 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
         ref_list += f"; ... and {len(remaining) - 80} more"
     levels = ", ".join(f"{area}: {level}" for area, level in payload.area_levels.items()) or "unknown"
     goal = payload.goal_text or f"master {payload.slug}"
+    pace_hint = (
+        f"The learner can study about {payload.weekly_hours} hours per week; "
+        "size the phases realistically for that pace and mention it in the summary. "
+        if payload.weekly_hours
+        else ""
+    )
     choice_hint = ""
     if choice_groups:
         id_to_name = {n["id"]: n["name"] for n in graph["nodes"]}
@@ -204,7 +216,8 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
         "You are the Coursegram path generator. Build a personalized "
         f"learning roadmap for a learner whose goal is: {goal}. "
         f"Track: {payload.slug}. Self rated proficiency per skill area: {levels}. "
-        f"Topics the learner already knows (skip these): "
+        + pace_hint
+        + f"Topics the learner already knows (skip these): "
         f"{', '.join(payload.known_topics) if payload.known_topics else 'none'}.\n"
         + choice_hint
         + "Use this ordered reference topic list from the track as the source of "
@@ -255,6 +268,8 @@ async def generate_plan(payload: PlanRequest) -> PlanResponse:
                 filtered.append(PlanPhase(name=phase.name, milestone=phase.milestone, topics=kept))
         if not filtered:
             raise ValueError("every phase topic was dropped")
+        ordered = enforce_phase_order(graph, [phase.model_dump() for phase in filtered])
+        filtered = [PlanPhase(**phase) for phase in ordered]
         return PlanResponse(
             slug=payload.slug,
             summary=str(data.get("summary", "")).strip(),

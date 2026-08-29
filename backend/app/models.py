@@ -28,6 +28,18 @@ class LearnerProfile(BaseModel):
         default_factory=list,
         description="Topics the learner already knows, from onboarding",
     )
+    interests: list[str] = Field(
+        default_factory=list,
+        description="Free form interest tags used to bias recommendations",
+    )
+    weekly_hours: Optional[int] = Field(
+        default=None,
+        description="Study hours per week the learner can commit",
+    )
+    preferred_formats: list[str] = Field(
+        default_factory=list,
+        description="Preferred resource formats like course, video, book, practice",
+    )
     onboarding_complete: bool = Field(
         default=False,
         description="Whether the first time onboarding flow has been finished",
