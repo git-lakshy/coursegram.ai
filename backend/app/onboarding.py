@@ -20,7 +20,7 @@ from app import llm
 from app.roadmap_store import (
     RoadmapNotFound,
     enforce_phase_order,
-    list_roadmap_slugs,
+    list_roadmap_options,
     load_roadmap_topics,
 )
 
@@ -136,22 +136,86 @@ def _canonical_topic(topic: str, remaining: list[str]) -> str | None:
     return None
 
 
+def resolve_track(candidate: str, goal_text: str, options: list[dict]) -> str | None:
+    """Resolve an LLM track pick onto a real slug, fuzzily.
+
+    The model rarely echoes slugs verbatim ("full stack developer" vs
+    "full-stack"), so try normalized and near matches, then match the
+    goal's own words against slugs and titles before giving up.
+    """
+    slugs = [option["slug"] for option in options]
+    candidate_clean = candidate.strip().lower()
+    if candidate_clean in slugs:
+        return candidate_clean
+    normalized = re.sub(r"[\s_]+", "-", candidate_clean)
+    if normalized in slugs:
+        return normalized
+    close = difflib.get_close_matches(normalized, slugs, n=1, cutoff=0.75)
+    if close:
+        return close[0]
+    goal_lower = goal_text.lower()
+    for option in options:
+        title_words = re.findall(r"[a-z0-9]+", option["title"].lower())
+        if len(title_words) >= 2 and all(f" {word}" in f" {goal_lower}" for word in title_words):
+            return option["slug"]
+    for option in options:
+        slug_words = [word for word in option["slug"].split("-") if word]
+        if len(slug_words) >= 2 and all(f" {word}" in f" {goal_lower}" for word in slug_words):
+            return option["slug"]
+    return None
+
+
+async def generate_custom_track(goal_text: str) -> dict:
+    """Fallback when no existing track fits: design a new LearningGraph."""
+    prompt = (
+        "You design learning tracks for Coursegram as skill graphs. No "
+        "existing track matches the learner's goal, so design a new one. "
+        "Create 12 to 18 topics that take a learner from fundamentals to "
+        "job ready for this goal, ordered so every topic only depends on "
+        "earlier ones. Respond with JSON only: {\"slug\": \"kebab-case-"
+        "slug\", \"title\": \"Track Title\", \"nodes\": [{\"id\": "
+        "\"kebab-id\", \"name\": \"Topic Name\", \"prerequisites\": "
+        "[\"ids of earlier topics\"]}]}\n"
+        f"Learner goal: {goal_text}"
+    )
+    raw = await llm.chat_completion(
+        [{"role": "user", "content": prompt}],
+        json_mode=True,
+        temperature=0.4,
+        max_tokens=3000,
+    )
+    data = _parse_json(raw)
+    slug = re.sub(r"[^a-z0-9]+", "-", str(data.get("slug", "")).lower()).strip("-")
+    title = str(data.get("title", "")).strip()
+    nodes = data.get("nodes")
+    if not slug or not title or not isinstance(nodes, list) or len(nodes) < 8:
+        raise HTTPException(status_code=502, detail="The generated track was unusable")
+    slug = slug[:60]
+    from app.roadmap_store import _normalize_graph, insert_generated_track
+
+    normalized = _normalize_graph(slug, {"slug": slug, "title": title, "nodes": nodes})
+    insert_generated_track(slug, title, normalized)
+    return {"slug": slug, "title": title, "custom": True}
+
+
 async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
     """Parse a free text goal into a track and major skill areas."""
     if not llm.is_configured():
         raise HTTPException(status_code=503, detail="LLM is not configured on the server")
 
-    slugs = list_roadmap_slugs()
+    options = list_roadmap_options()
     prompt = (
         "You are the Coursegram onboarding assistant. A learner describes "
-        "their goal in natural language. Pick the best matching track from the "
-        "available tracks and identify the 3 to 6 major skill areas of that "
-        "track the learner must master. Respond with JSON only: "
+        "their goal in natural language. Pick the best matching track from "
+        "the available tracks and identify the 3 to 6 major skill areas of "
+        "that track the learner must master. track_slug MUST be copied "
+        "verbatim from the list below. Respond with JSON only: "
         '{"track_slug": "...", "summary": "one sentence confirming the goal", '
         '"areas": [{"name": "...", "topics": ["..."]}]} where area topics are '
         "short skill names, not full courses.\n"
-        f"Available track slugs: {', '.join(slugs)}.\n"
-        f"Learner goal: {payload.goal_text}"
+        f"Available tracks (slug: title):\n"
+        + "\n".join(f"- {option['slug']}: {option['title']}" for option in options)
+        + f"\n\nLearner goal: {payload.goal_text}"
     )
     raw = await llm.chat_completion(
         [{"role": "user", "content": prompt}],
@@ -159,9 +223,14 @@ async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
         temperature=0.2,
     )
     data = _parse_json(raw)
-    track_slug = str(data.get("track_slug", "")).strip()
-    if track_slug not in slugs:
-        raise HTTPException(status_code=502, detail="The assistant could not match your goal to a track")
+    track_slug = resolve_track(
+        str(data.get("track_slug", "")), payload.goal_text, options
+    )
+    custom_note = ""
+    if track_slug is None:
+        generated = await generate_custom_track(payload.goal_text)
+        track_slug = generated["slug"]
+        custom_note = "We designed a custom track for this goal. "
     areas = [
         GoalArea(name=str(item.get("name", "")).strip(), topics=[str(t) for t in item.get("topics", [])])
         for item in data.get("areas", [])
@@ -169,9 +238,10 @@ async def analyze_goal(payload: GoalRequest) -> GoalAnalysisResponse:
     ]
     if not areas:
         raise HTTPException(status_code=502, detail="The assistant could not identify skill areas")
+    summary = custom_note + str(data.get("summary", "")).strip()
     return GoalAnalysisResponse(
         track_slug=track_slug,
-        summary=str(data.get("summary", "")).strip(),
+        summary=summary,
         areas=areas,
     )
 

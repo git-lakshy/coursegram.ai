@@ -36,6 +36,7 @@ raised, which the API reports as a 503 asking the learner to contact
 the administrator.
 """
 
+import json
 import re
 
 from sqlalchemy import text
@@ -276,6 +277,44 @@ def load_roadmap_graph(slug: str) -> dict:
     if row is None or row[0] is None:
         raise RoadmapNotFound(slug)
     return _normalize_graph(slug, row[0])
+
+
+def list_roadmap_options() -> list[dict]:
+    """Slug and title pairs, so prompts can show what each track is."""
+    try:
+        engine = get_engine()
+    except DatabaseNotConfigured:
+        raise
+    except Exception as error:
+        raise DatabaseNotConfigured(str(error)) from error
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT slug, title FROM roadmaps ORDER BY slug")
+            ).fetchall()
+            return [{"slug": row[0], "title": row[1] or row[0]} for row in rows]
+    except Exception as error:
+        raise DatabaseNotConfigured(str(error)) from error
+
+
+def insert_generated_track(slug: str, title: str, graph: dict) -> None:
+    """Store an LLM generated track as a first class roadmap."""
+    engine = get_engine()
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO roadmaps (slug, title, topics, graph, updated_at) "
+                "VALUES (:slug, :title, CAST(:topics AS jsonb), CAST(:graph AS jsonb), now()) "
+                "ON CONFLICT (slug) DO UPDATE SET title = :title, "
+                "topics = CAST(:topics AS jsonb), graph = CAST(:graph AS jsonb), updated_at = now()"
+            ),
+            {
+                "slug": slug,
+                "title": title,
+                "topics": json.dumps([str(node["name"]) for node in graph["nodes"]]),
+                "graph": json.dumps(graph),
+            },
+        )
 
 
 def load_roadmap_topics(slug: str) -> list[str]:
