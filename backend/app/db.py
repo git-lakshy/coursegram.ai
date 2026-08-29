@@ -128,6 +128,19 @@ def is_database_enabled() -> bool:
     return DATABASE_URL != ""
 
 
+def _apply_schema(engine) -> None:
+    """Apply the schema idempotently, one statement at a time.
+
+    Splitting matters: through pooled connections (pgbouncer) a single
+    multi statement string is not reliably executed in full, which left
+    newer tables missing on production.
+    """
+    with engine.begin() as connection:
+        for statement in SCHEMA.split(";"):
+            if statement.strip():
+                connection.execute(text(statement))
+
+
 def get_engine():
     global _engine
     if not is_database_enabled():
@@ -141,6 +154,10 @@ def get_engine():
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         _engine = create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
-        with _engine.begin() as connection:
-            connection.execute(text(SCHEMA))
+        _apply_schema(_engine)
     return _engine
+
+
+def ensure_schema() -> None:
+    """Apply the schema at startup, before the first request arrives."""
+    _apply_schema(get_engine())

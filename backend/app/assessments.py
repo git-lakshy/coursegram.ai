@@ -185,7 +185,7 @@ async def generate_stage_assessment(email: str, slug: str, stage_position: int) 
         [{"role": "user", "content": _stage_questions_prompt(slug, stage)}],
         json_mode=True,
         temperature=0.5,
-        max_tokens=2500,
+        max_tokens=4096,
     )
     try:
         cleaned = raw.strip()

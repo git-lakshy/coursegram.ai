@@ -113,8 +113,8 @@ def _project_prompt(graph: dict) -> str:
         f"{'; '.join(topics)}\n"
         + group_hint
         + "Respond with JSON only: {\"projects\": [{\"title\": \"...\", "
-        "\"description\": \"2 to 3 sentences: what the learner builds and why "
-        "it proves the skills\", \"stage\": \"one of the listed stages\", "
+        "\"description\": \"1 to 2 sentences (under 40 words): what the learner builds "
+        "and why it proves the skills\", \"stage\": \"one of the listed stages\", "
         "\"difficulty\": \"beginner|intermediate|advanced\", \"skills\": "
         "[\"...\"], \"related_topics\": [\"verbatim topic names\"]}]}"
     )
@@ -138,7 +138,7 @@ async def get_track_projects(slug: str) -> list[dict]:
         [{"role": "user", "content": _project_prompt(graph)}],
         json_mode=True,
         temperature=0.4,
-        max_tokens=3000,
+        max_tokens=4096,
     )
     try:
         data = json.loads(_extract_json(raw))

@@ -61,6 +61,14 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        from app.db import ensure_schema, is_database_enabled
+
+        if is_database_enabled():
+            ensure_schema()
+            logging.getLogger("app.main").info("Database schema applied")
+    except Exception as error:
+        logging.getLogger("app.main").warning("Startup schema check failed: %s", error)
     yield
     await close_client()
 
