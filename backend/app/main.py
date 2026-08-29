@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from app.assistant import ChatRequest, ChatResponse, chat
+from app import actions as actions_executor
 from app import assessments as assessments_pipeline
 from app.auth import get_current_user_email
 from app.auth_security import firebase_enabled
@@ -425,9 +426,14 @@ async def analyze_project_endpoint(
     try:
         profile = load_profile(email)
         track_projects = projects_pipeline.load_cached_projects(payload.slug)
-        if track_projects is None:
+        definition = None
+        if track_projects is not None:
+            definition = next((item for item in track_projects if item["id"] == project_id), None)
+        if definition is None:
+            definition = row.get("definition")
+        if definition is None:
             track_projects = await projects_pipeline.get_track_projects(payload.slug)
-        definition = next((item for item in track_projects if item["id"] == project_id), None)
+            definition = next((item for item in track_projects if item["id"] == project_id), None)
         if definition is None:
             raise HTTPException(status_code=404, detail="Unknown project for this track")
         analysis = await projects_pipeline.analyze_project(profile, definition, row)
@@ -561,6 +567,24 @@ def clear_assistant_history(email: str = Depends(get_current_user_email)) -> dic
     """Delete the learner's stored assistant conversation."""
     chat_store.clear(email)
     return {"cleared": True}
+
+
+class AssistantExecuteRequest(BaseModel):
+    actions: list[dict] = Field(min_length=1, max_length=5)
+
+
+@app.post("/assistant/execute")
+async def assistant_execute_endpoint(
+    payload: AssistantExecuteRequest,
+    background_tasks: BackgroundTasks,
+    email: str = Depends(get_current_user_email),
+) -> dict:
+    """Apply confirmed assistant actions after server side validation."""
+    profile = load_profile(email)
+    results = await actions_executor.execute_actions(email, profile, payload.actions)
+    if any(item.get("applied") for item in results):
+        background_tasks.add_task(refresh_learner_context, email)
+    return {"results": results}
 
 
 

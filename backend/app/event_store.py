@@ -28,6 +28,7 @@ VALID_TYPES = {
     "project_state_changed",
     "project_analyzed",
     "assessment_taken",
+    "assistant_action",
 }
 
 

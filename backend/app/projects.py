@@ -182,6 +182,47 @@ def load_cached_projects(slug: str) -> list[dict] | None:
     return _with_ids(slug, cached)
 
 
+async def generate_custom_project(profile, slug: str, hint: str | None = None) -> dict:
+    """Generate one ad hoc project for the learner's track on request."""
+    try:
+        graph = load_roadmap_graph(slug)
+    except RoadmapNotFound:
+        raise RoadmapNotFound(slug)
+    if not llm.is_configured():
+        raise llm.LLMNotConfigured("Set NVIDIA_API_KEY to enable project generation")
+
+    topics = [str(node["name"]) for node in graph.get("nodes", [])][:MAX_TOPICS_IN_PROMPT]
+    stage_hint = f"The learner asked for this focus: {hint}. " if hint else ""
+    prompt = (
+        "You design applied learning projects for Coursegram. Design ONE "
+        f"portfolio worthy project for the track {slug} "
+        f"({graph.get('title', '')}) at the learner's level "
+        f"({profile.skill_level}). {stage_hint}"
+        "Reference topics (assign related_topics verbatim from this list):\n"
+        f"{'; '.join(topics)}\n"
+        "Respond with JSON only: {\"title\": \"...\", \"description\": "
+        "\"2 to 3 sentences: what the learner builds and why it proves the "
+        "skills\", \"stage\": \"one stage of the track\", \"difficulty\": "
+        "\"beginner|intermediate|advanced\", \"skills\": [\"...\"], "
+        "\"related_topics\": [\"verbatim topic names\"]}"
+    )
+    raw = await llm.chat_completion(
+        [{"role": "user", "content": prompt}],
+        json_mode=True,
+        temperature=0.5,
+        max_tokens=1200,
+    )
+    try:
+        data = json.loads(_extract_json(raw))
+    except (json.JSONDecodeError, ValueError) as error:
+        logger.warning("Custom project parse failed for %s: %s", slug, error)
+        raise ProjectError("Could not parse the generated project") from error
+    single = _valid_projects({"projects": [data] if isinstance(data, dict) else []})
+    if single is None:
+        raise ProjectError("The generated project was unusable")
+    return single[0]
+
+
 async def analyze_project(profile, definition: dict, row: dict) -> dict:
     """Review the learner's project evidence and return honest feedback."""
     if not llm.is_configured():

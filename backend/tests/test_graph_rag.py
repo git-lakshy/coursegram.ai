@@ -1,6 +1,12 @@
-"""Tests for graph retrieval linking."""
+"""Tests for graph retrieval linking and assistant action validation."""
+
+import asyncio
+
+import pytest
 
 import app.graph_rag as graph_rag
+from app.actions import ActionError, MAX_ACTIONS_PER_TURN
+from app.actions import execute_actions
 
 
 def _graph():
@@ -39,3 +45,23 @@ def test_expand_neighborhood_edges():
 
 def test_expand_neighborhood_unknown_seed():
     assert graph_rag.expand_neighborhood(_graph(), "Nope") is None
+
+
+def test_execute_actions_rejects_unsupported_type():
+    results = asyncio.run(execute_actions("a@b.com", object(), [{"type": "delete_everything"}]))
+    assert results[0]["applied"] is False
+    assert "Unsupported" in results[0]["reason"]
+
+
+def test_max_actions_constant_is_three():
+    assert MAX_ACTIONS_PER_TURN == 3
+
+
+def test_require_track_raises_without_slug():
+    class FakeProfile:
+        target_role_slug = None
+
+    from app.actions import _require_track
+
+    with pytest.raises(ActionError):
+        _require_track(FakeProfile())
