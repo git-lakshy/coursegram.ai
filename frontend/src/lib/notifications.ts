@@ -44,6 +44,33 @@ export function buildNotifications(
     })
   }
 
+  if (profile !== null && profile.interests.length === 0) {
+    items.push({
+      id: "interests",
+      title: "Add your interests",
+      detail: "Interest tags bias recommendations toward what you enjoy.",
+      to: "/profile",
+    })
+  }
+
+  if (profile !== null && profile.weekly_hours === null) {
+    items.push({
+      id: "weekly-hours",
+      title: "Set your weekly study hours",
+      detail: "Your pace shapes plan sizing and realistic milestones.",
+      to: "/profile",
+    })
+  }
+
+  if (profile !== null && profile.preferred_formats.length === 0) {
+    items.push({
+      id: "preferred-formats",
+      title: "Pick preferred formats",
+      detail: "Courses, videos, books, or practice: we rank what suits you.",
+      to: "/profile",
+    })
+  }
+
   return items
 }
 

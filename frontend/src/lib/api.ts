@@ -23,6 +23,7 @@ import type {
   LearningStatusResponse,
   MeResponse,
   ProgressResponse,
+  ProgressTimelineResponse,
   NextWithResourcesResponse,
   PlanResponse,
   ProjectAnalysisResponse,
@@ -124,6 +125,17 @@ export function getProgress(token: string, slug: string): Promise<ProgressRespon
   return request<ProgressResponse>(`/progress/${encodeURIComponent(slug)}`, { token })
 }
 
+export function getProgressTimeline(
+  token: string,
+  slug: string,
+  weeks = 8,
+): Promise<ProgressTimelineResponse> {
+  return request<ProgressTimelineResponse>(
+    `/progress/${encodeURIComponent(slug)}/timeline?weeks=${weeks}`,
+    { token },
+  )
+}
+
 export function saveProgress(
   token: string,
   slug: string,
@@ -183,10 +195,17 @@ export function generatePlan(
   goalText: string,
   areaLevels: Record<string, string>,
   knownTopics: string[],
+  weeklyHours?: number | null,
 ): Promise<PlanResponse> {
   return request<PlanResponse>("/onboarding/plan", {
     method: "POST",
-    body: { slug, goal_text: goalText, area_levels: areaLevels, known_topics: knownTopics },
+    body: {
+      slug,
+      goal_text: goalText,
+      area_levels: areaLevels,
+      known_topics: knownTopics,
+      weekly_hours: weeklyHours ?? null,
+    },
     token,
   })
 }

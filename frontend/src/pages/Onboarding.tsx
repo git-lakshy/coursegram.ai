@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+﻿import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Flag, Loader2 } from "lucide-react"
@@ -142,7 +142,7 @@ export function Onboarding() {
     setIsBusy(true)
     setError(null)
     try {
-      const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
+      const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics, profile?.weekly_hours)
       setPlan(built)
       setStep(3)
     } catch (err) {
@@ -168,6 +168,9 @@ export function Onboarding() {
           plan: profile.plan,
           target_role_slug: profile.target_role_slug,
           known_topics: profile.known_topics,
+          interests: profile.interests,
+          weekly_hours: profile.weekly_hours,
+          preferred_formats: profile.preferred_formats,
           onboarding_complete: true,
           personalized_roadmap: profile.personalized_roadmap,
         })
@@ -179,7 +182,7 @@ export function Onboarding() {
           phases: regenerated.personalized_roadmap.phases,
         })
       } else {
-        const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics)
+        const built = await generatePlan(token, slug, goalMessage, areaLevels, knownTopics, profile?.weekly_hours)
         setPlan(built)
       }
       setStep(3)
@@ -211,6 +214,9 @@ export function Onboarding() {
         plan: profile?.plan ?? "free",
         target_role_slug: plan.slug,
         known_topics: knownTopics,
+        interests: profile?.interests ?? [],
+        weekly_hours: profile?.weekly_hours ?? null,
+        preferred_formats: profile?.preferred_formats ?? [],
         onboarding_complete: true,
         personalized_roadmap: {
           slug: plan.slug,
@@ -470,3 +476,4 @@ export function Onboarding() {
     </div>
   )
 }
+

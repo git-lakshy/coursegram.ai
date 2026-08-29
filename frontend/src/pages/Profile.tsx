@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { useAuth } from "@/hooks/useAuth"
 import { getRoadmapSlugs, updatePlan, updateProfile } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import type { LearnerProfile, SkillLevel } from "@/types"
 
 const SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"]
+const FORMATS = ["course", "video", "book", "practice", "project"]
 
 export function Profile() {
   const { token, email, user, profile, setProfile } = useAuth()
@@ -136,6 +138,72 @@ export function Profile() {
             placeholder="Short description of where you are coming from"
           />
         </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-secondary">Interests</span>
+          <Input
+            value={draft.interests.join(", ")}
+            onChange={(event) =>
+              patch({
+                interests: event.target.value
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+              })
+            }
+            placeholder="Comma separated, e.g. web apps, AI, design"
+          />
+        </label>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-ink-secondary">Weekly study hours</span>
+            <Select
+              className="w-full"
+              value={draft.weekly_hours === null ? "" : String(draft.weekly_hours)}
+              onChange={(event) =>
+                patch({ weekly_hours: event.target.value === "" ? null : Number(event.target.value) })
+              }
+            >
+              <option value="">Not set</option>
+              {[2, 5, 8, 10, 15, 20, 30, 40].map((hours) => (
+                <option key={hours} value={hours}>
+                  {hours} hours
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          <div>
+            <span className="mb-1 block text-xs font-medium text-ink-secondary">Preferred formats</span>
+            <div className="flex flex-wrap gap-1.5">
+              {FORMATS.map((format) => {
+                const selected = draft.preferred_formats.includes(format)
+                return (
+                  <button
+                    key={format}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        preferred_formats: selected
+                          ? draft.preferred_formats.filter((item) => item !== format)
+                          : [...draft.preferred_formats, format],
+                      })
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                      selected
+                        ? "border-accent-600 bg-accent-50 text-accent-700"
+                        : "border-border bg-surface text-ink-secondary hover:border-ink-muted",
+                    )}
+                  >
+                    {format}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">

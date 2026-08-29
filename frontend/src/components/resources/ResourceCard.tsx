@@ -143,6 +143,10 @@ export function ResourceCard({
         <p className="line-clamp-2 text-xs text-ink-secondary">{resource.description}</p>
       ) : null}
 
+      {resource.reason ? (
+        <p className="text-[10px] leading-snug text-accent-700">Why this: {resource.reason}</p>
+      ) : null}
+
       <TrackingControl resource={resource} trackStatus={trackStatus} onSetStatus={onSetStatus} />
     </a>
   )

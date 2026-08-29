@@ -109,6 +109,9 @@ export type LearnerProfile = {
   plan: AccountPlan
   target_role_slug: string | null
   known_topics: string[]
+  interests: string[]
+  weekly_hours: number | null
+  preferred_formats: string[]
   onboarding_complete: boolean
   personalized_roadmap: PersonalizedRoadmap | null
 }
@@ -155,6 +158,7 @@ export type AssistantAction = {
   project_id?: string | null
   state?: string | null
   hint?: string | null
+  goal?: string | null
 }
 
 export type AssistantActionProposal = {
@@ -200,6 +204,7 @@ export type ResourceItem = {
   description: string | null
   matched_topics: string[]
   score: number | null
+  reason?: string
 }
 
 export type ResourcesResponse = {
@@ -400,5 +405,10 @@ export type ChatHistoryMessage = {
 
 export type ChatHistoryResponse = {
   messages: ChatHistoryMessage[]
+}
+
+export type ProgressTimelineResponse = {
+  slug: string
+  weeks: { week_start: string; count: number }[]
 }
 

@@ -6,11 +6,14 @@ import { AiAssistantPanel } from "@/components/dashboard/AiAssistantPanel"
 import { CurrentlyLearningPanel } from "@/components/dashboard/CurrentlyLearningPanel"
 import { EmptyState } from "@/components/common/EmptyState"
 import { MetricCard } from "@/components/dashboard/MetricCard"
+import { NextBestAction } from "@/components/dashboard/NextBestAction"
+import { ProfileCompletionCard } from "@/components/dashboard/ProfileCompletionCard"
 import { RecommendedCourses } from "@/components/dashboard/RecommendedCourses"
 import { ResourceCard } from "@/components/resources/ResourceCard"
 import { RoadmapProgress } from "@/components/dashboard/RoadmapProgress"
 import { SkillSnapshot } from "@/components/dashboard/SkillSnapshot"
 import { UpcomingItems } from "@/components/dashboard/UpcomingItems"
+import { WeeklyActivityChart } from "@/components/dashboard/WeeklyActivityChart"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -170,8 +173,11 @@ export function Dashboard() {
           />
         </div>
         <div className="space-y-5">
+          <ProfileCompletionCard />
+          <NextBestAction slug={slug} nextTopic={nextTopic ?? null} />
           <AiAssistantPanel nextTopic={nextTopic ?? null} />
           <CurrentlyLearningPanel />
+          <WeeklyActivityChart slug={slug} />
           <SkillSnapshot
             allTopics={topics}
             completedTopics={completedTopics}

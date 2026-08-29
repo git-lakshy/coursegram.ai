@@ -39,6 +39,9 @@ const DEFAULT_PROFILE: LearnerProfile = {
   plan: "free",
   target_role_slug: null,
   known_topics: [],
+  interests: [],
+  weekly_hours: null,
+  preferred_formats: [],
   onboarding_complete: false,
   personalized_roadmap: null,
 }

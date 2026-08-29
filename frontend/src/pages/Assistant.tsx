@@ -71,6 +71,8 @@ function actionSummary(action: AssistantAction): string {
       return `Generate a new project${action.hint ? ` (${action.hint})` : ""}`
     case "generate_assessment":
       return `Prepare an assessment for stage ${action.stage_position ?? ""}`
+    case "generate_plan_from_chat":
+      return `Create a learning plan from your goal: ${action.goal ?? ""}`
     default:
       return action.type
   }

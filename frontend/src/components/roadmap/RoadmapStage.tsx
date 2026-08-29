@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { CheckCircle2 } from "lucide-react"
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
 import { Select } from "@/components/ui/select"
@@ -91,7 +92,18 @@ export function RoadmapStage({ stage, stageNumber, completedTopics, onToggleTopi
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-ink-primary">{stage.name}</p>
             <p className="truncate text-xs text-ink-muted">
-              {stage.milestone ? `${stage.milestone} | ` : ""}
+              {stage.milestone ? (
+                stageCompleted ? (
+                  <span className="mr-1 inline-flex items-center gap-0.5 font-medium text-accent-700">
+                    <CheckCircle2 className="inline h-3 w-3" />
+                    {stage.milestone} |
+                  </span>
+                ) : (
+                  `${stage.milestone} | `
+                )
+              ) : (
+                ""
+              )}
               {stage.topics.slice(0, 3).join(", ")}
             </p>
           </div>
