@@ -5,6 +5,7 @@ host). Without it the API refuses database backed operations and returns a
 clear configuration error.
 """
 
+import logging
 import os
 
 from sqlalchemy import create_engine, text
@@ -28,6 +29,12 @@ CREATE TABLE IF NOT EXISTS roadmaps (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS resources (
+    id TEXT PRIMARY KEY,
+    doc JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS profiles (
     email TEXT PRIMARY KEY REFERENCES users(email) ON DELETE CASCADE,
     display_name TEXT NOT NULL DEFAULT '',
@@ -44,7 +51,6 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS learner_context JSONB;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
-ALTER TABLE user_projects ADD COLUMN IF NOT EXISTS definition JSONB;
 
 CREATE TABLE IF NOT EXISTS progress (
     email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
@@ -70,12 +76,6 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_email_created_idx ON events (email, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS resources (
-    id TEXT PRIMARY KEY,
-    doc JSONB NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE IF NOT EXISTS user_courses (
     email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
     resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
@@ -93,9 +93,11 @@ CREATE TABLE IF NOT EXISTS user_projects (
     repo_url TEXT,
     demo_url TEXT,
     analysis JSONB,
+    definition JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (email, project_id)
 );
+ALTER TABLE user_projects ADD COLUMN IF NOT EXISTS definition JSONB;
 
 CREATE TABLE IF NOT EXISTS assessment_results (
     id BIGSERIAL PRIMARY KEY,
@@ -129,16 +131,30 @@ def is_database_enabled() -> bool:
 
 
 def _apply_schema(engine) -> None:
-    """Apply the schema idempotently, one statement at a time.
+    """Apply the schema idempotently, one statement per transaction.
 
-    Splitting matters: through pooled connections (pgbouncer) a single
-    multi statement string is not reliably executed in full, which left
-    newer tables missing on production.
+    Per statement isolation matters twice over: a pooled connection
+    (pgbouncer) does not reliably run one giant multi statement string in
+    full, and one broken statement must never roll back the rest. The
+    schema is idempotent, so a failed statement is retried on the next
+    startup.
     """
-    with engine.begin() as connection:
+    applied = 0
+    with engine.connect() as connection:
         for statement in SCHEMA.split(";"):
-            if statement.strip():
-                connection.execute(text(statement))
+            if not statement.strip():
+                continue
+            try:
+                with connection.begin():
+                    connection.execute(text(statement))
+                applied += 1
+            except Exception as error:
+                logging.getLogger("app.db").warning(
+                    "Schema statement failed: %s | %.140s",
+                    error,
+                    statement.strip().replace("\n", " "),
+                )
+    logging.getLogger("app.db").info("Schema applied (%s statements)", applied)
 
 
 def get_engine():
